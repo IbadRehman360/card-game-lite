@@ -1,0 +1,706 @@
+/* ─── Bhabhi Thulla: cards over the 3D table, the same seat tags and chips as Rung and 3 Patti ─── */
+
+.bh {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  --tc: clamp(46px, min(9vw, 12dvh), 84px);
+  --cw: clamp(48px, min(11vw, 15dvh), 96px);
+  font-family: var(--font-oswald), sans-serif;
+  color: var(--bone);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.bh > * {
+  pointer-events: auto;
+}
+.bh[data-paused="true"] *,
+.bh[data-paused="true"] *::before {
+  animation-play-state: paused !important;
+}
+
+/* ── top bar: the same chips as Rung and 3 Patti ── */
+/* the help button is the app's shared gold icon-button (menu.css), top-left, clear of pause, mute and coins */
+.bh .bh-help {
+  z-index: 5;
+}
+
+/* ── cards on the 3D table: a see-through layer, nothing drawn but the cards ── */
+.bh .bh-table {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ── the other players: the game's own seat tags (game.css), plus a medal and a bubble ── */
+.bh-seat {
+  pointer-events: none;
+}
+.bh-seat[data-out="true"] {
+  opacity: 0.6;
+}
+.bh-seat .seat-cards {
+  position: relative;
+  z-index: 1;
+}
+.bh-seat[data-turn="true"] .seat-cards {
+  color: var(--ink);
+  background: var(--gold-hi);
+}
+.bh-medal {
+  position: absolute;
+  right: -10px;
+  bottom: 4px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  font: 700 11px/1 var(--font-oswald), sans-serif;
+  font-style: normal;
+  color: var(--ink);
+  background: linear-gradient(180deg, #ffe58f, #e0a028);
+  box-shadow:
+    0 0 0 2px var(--ink),
+    0 4px 8px rgba(0, 0, 0, 0.5);
+  animation: bh-pop 0.55s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+.bh-bubble {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  translate: -50% -100%;
+  z-index: 3;
+  padding: 4px 9px;
+  border-radius: 8px;
+  font: 700 13px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--ink);
+  background: var(--bone);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+  animation: bh-bubble 1.9s ease both;
+}
+.bh-bubble[data-tone="thulla"] {
+  background: var(--red);
+  color: #fff;
+}
+.bh-bubble[data-tone="pickup"] {
+  background: var(--gold-hi);
+}
+
+/* ── thrown-away pile ── */
+.bh-discard {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  translate: -50% -50%;
+  width: calc(var(--tc) * 0.62);
+  aspect-ratio: 5 / 7;
+  z-index: 1;
+}
+.bh-back {
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--ink);
+  background:
+    repeating-linear-gradient(45deg, rgba(242, 193, 78, 0.25) 0 3px, transparent 3px 7px),
+    radial-gradient(circle at 50% 50%, #b42a3e, #5e1220);
+  box-shadow:
+    inset 0 0 0 3px #f4ecd8,
+    0 3px 6px rgba(0, 0, 0, 0.45);
+}
+.bh-back:nth-child(1) {
+  rotate: -9deg;
+}
+.bh-back:nth-child(2) {
+  rotate: 5deg;
+  translate: 2px -2px;
+}
+.bh-back:nth-child(3) {
+  rotate: -2deg;
+  translate: -1px -4px;
+}
+.bh-discard small {
+  position: absolute;
+  left: 50%;
+  bottom: -18px;
+  translate: -50% 0;
+  font: 600 11px/1 var(--font-plex-mono), monospace;
+  color: rgba(255, 244, 214, 0.7);
+  animation: bh-pop 0.4s ease both;
+}
+
+/* ── cards on the table ── */
+.bh-tc {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  translate: -50% -50%;
+  width: var(--tc);
+  aspect-ratio: 5 / 7;
+  rotate: var(--r);
+  z-index: 2;
+  --cw: var(--tc);
+  animation: bh-in 0.38s var(--ease-out) both;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45));
+}
+.bh-tc[data-off="true"] {
+  filter: drop-shadow(0 0 10px rgba(224, 71, 90, 0.95)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45));
+}
+/* the trick that just ended: holds a moment, then goes */
+.bh-ghost {
+  animation: bh-out 0.95s cubic-bezier(0.55, 0, 0.7, 0.4) calc(0.38s + var(--d)) forwards;
+}
+.bh-ghost[data-last="true"] {
+  animation:
+    bh-in 0.38s var(--ease-out) both,
+    bh-out 0.95s cubic-bezier(0.55, 0, 0.7, 0.4) calc(0.38s + var(--d)) forwards;
+}
+
+/* ── THULLA! ── */
+.bh-stamp {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  translate: -50% -50%;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  animation: bh-stamp 1.5s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.bh-stamp b {
+  padding: 2px 16px 4px;
+  border: 4px solid #fff;
+  border-radius: 10px;
+  font: 700 clamp(34px, 7dvh, 58px) / 1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(180deg, #ef5a63, #b51f2e);
+  box-shadow:
+    0 0 0 3px var(--ink),
+    0 14px 30px rgba(0, 0, 0, 0.6);
+  rotate: -9deg;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+}
+.bh-stamp small {
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: rgba(8, 5, 2, 0.85);
+  font: 600 13px/1.2 var(--font-oswald), sans-serif;
+  letter-spacing: 0.04em;
+}
+
+/* ── your side: one status row, then the hand ── */
+.bh .bh-handbar {
+  gap: 8px;
+}
+.bh-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: calc(100% - 24px);
+  min-height: 34px;
+  font-size: 15px;
+}
+.bh-status-what {
+  min-width: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(14, 9, 4, 0.62);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255, 244, 214, 0.92);
+}
+.bh-status-turn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(14, 9, 4, 0.78);
+  border: 1px solid rgba(255, 236, 200, 0.14);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 13px;
+  color: var(--dim);
+}
+.bh-status[data-mine="true"] .bh-status-turn {
+  background: var(--gold);
+  border-color: var(--gold-hi);
+  color: var(--ink);
+  animation: bh-pop 0.4s ease both;
+}
+.bh-clock {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: conic-gradient(var(--ink) var(--p, 100%), rgba(20, 13, 2, 0.25) 0);
+  animation: bh-clock linear forwards;
+}
+.bh-cl {
+  display: inline-block;
+  padding: 0 5px;
+  margin: 0 2px;
+  border-radius: 4px;
+  background: #fffaf0;
+  color: var(--ink);
+  font: 700 0.95em/1.3 var(--font-oswald), sans-serif;
+}
+.bh-cl[data-red="true"] {
+  color: #c8202e;
+}
+.bh-toast {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--cw) * 1.4 + 80px);
+  translate: -50% 0;
+  z-index: 7;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--warn);
+  color: var(--ink);
+  font-weight: 700;
+  animation: bh-pop 0.3s ease both;
+}
+.bh-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 7px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold) 55%, var(--gold-deep));
+  box-shadow:
+    0 0 0 2px var(--ink),
+    0 4px 0 var(--gold-shadow),
+    0 8px 16px rgba(0, 0, 0, 0.45);
+  font: 700 16px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink);
+  cursor: pointer;
+  animation: bh-pop 0.3s ease both;
+}
+.bh-play:active {
+  translate: 0 3px;
+  box-shadow:
+    0 0 0 2px var(--ink),
+    0 1px 0 var(--gold-shadow);
+}
+/* the hand always fits the screen: the cards overlap more as it fills */
+.bh-hand {
+  position: relative;
+  height: calc(var(--cw) * 1.4 + 14px);
+  width: min(
+    calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right)),
+    calc(var(--cw) + (var(--n) - 1) * var(--cw) * 0.62)
+  );
+}
+.bh-card {
+  all: unset;
+  position: absolute;
+  bottom: 0;
+  left: calc((100% - var(--cw)) * var(--i) / max(var(--n) - 1, 1));
+  width: var(--cw);
+  aspect-ratio: 5 / 7;
+  transform-origin: 50% 260%;
+  rotate: calc((var(--i) - (var(--n) - 1) / 2) * var(--fan));
+  transition:
+    translate 0.18s var(--ease-out),
+    filter 0.2s ease;
+  animation: bh-deal 0.42s var(--ease-out) calc(var(--i) * 25ms) both;
+  cursor: default;
+}
+.bh-face {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  box-sizing: border-box;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 6px 14px rgba(0, 0, 0, 0.45);
+}
+.bh-card[data-ok="true"] {
+  cursor: pointer;
+  translate: 0 -6px;
+}
+.bh-card[data-ok="true"]:hover {
+  translate: 0 -14px;
+}
+.bh-card[data-dim="true"] {
+  filter: brightness(0.55) saturate(0.6);
+  translate: 0 6px;
+}
+.bh-card[data-picked="true"],
+.bh-card[data-picked="true"]:hover {
+  translate: 0 -22px;
+}
+.bh-card[data-picked="true"] .bh-face {
+  box-shadow:
+    0 0 0 3px var(--gold-hi),
+    0 0 18px 4px rgba(251, 212, 138, 0.6),
+    0 10px 18px rgba(0, 0, 0, 0.5);
+}
+.bh-card:focus-visible .bh-face {
+  outline: 3px solid var(--gold-hi);
+  outline-offset: 2px;
+}
+.bh-empty {
+  margin: 0;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--gold-hi);
+  font-size: 18px;
+}
+
+/* ── got away early ── */
+.bh-away {
+  position: absolute;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 14px);
+  translate: -50% 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(30, 20, 8, 0.96), rgba(14, 9, 3, 0.96));
+  box-shadow:
+    inset 0 0 0 2px rgba(240, 173, 58, 0.55),
+    0 16px 40px rgba(0, 0, 0, 0.6);
+  animation: bh-rise 0.45s var(--ease-out) both;
+}
+.bh-away b {
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gold-hi);
+}
+.bh-away-row {
+  display: flex;
+  gap: 10px;
+}
+
+/* ── the end ── */
+.bh-result .result-card {
+  padding-top: 20px;
+}
+.bh-result .result-title {
+  font-size: clamp(28px, 5.5vw, 46px);
+  -webkit-text-stroke: 2px var(--ink);
+  text-align: center;
+}
+.bh-reveal {
+  position: relative;
+  width: clamp(76px, 15dvh, 116px);
+  aspect-ratio: 1;
+  animation: bh-reveal 0.9s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+.bh-reveal-pfp {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 3px var(--ink),
+    0 0 0 6px var(--accent),
+    0 0 40px 8px rgba(224, 71, 90, 0.5);
+}
+.bh-reveal-pfp img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.bh-reveal-stamp {
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  translate: -50% 0;
+  rotate: -8deg;
+  padding: 3px 12px;
+  border: 3px solid #fff;
+  border-radius: 6px;
+  background: var(--red);
+  color: #fff;
+  font: 700 18px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  box-shadow: 0 0 0 2px var(--ink);
+  animation: bh-stamp-in 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) 0.6s both;
+}
+.bh-places {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 14px 0 4px;
+  padding: 0;
+  list-style: none;
+}
+.bh-places li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  background: rgba(255, 244, 214, 0.08);
+  font-size: 14px;
+}
+.bh-places li span {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffe58f, #e0a028);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+.bh-places li[data-me="true"] {
+  box-shadow: inset 0 0 0 1.5px var(--gold);
+}
+
+/* ── small sideways phones: everything tighter ── */
+@media (orientation: landscape) and (max-height: 500px) {
+  .bh {
+    --tc: clamp(34px, 12dvh, 56px);
+    --cw: clamp(40px, 16dvh, 64px);
+  }
+  .bh-handbar {
+    gap: 4px;
+  }
+  .bh-status {
+    min-height: 28px;
+    font-size: 13px;
+  }
+  .bh-status-turn {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+  .bh-status-what {
+    padding: 4px 10px;
+  }
+  .bh-hand {
+    height: calc(var(--cw) * 1.4 + 6px);
+  }
+  .bh-stamp b {
+    font-size: 32px;
+  }
+  .bh-result .result-card {
+    padding: 12px 18px 16px;
+  }
+  .bh-reveal {
+    width: 64px;
+  }
+}
+@media (max-width: 420px) {
+  .bh-status {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+
+/* ── motion ── */
+@keyframes bh-in {
+  from {
+    left: var(--fx);
+    top: var(--fy);
+    scale: 0.55;
+    rotate: 0deg;
+    opacity: 0.4;
+  }
+}
+@keyframes bh-out {
+  0% {
+    left: var(--x);
+    top: var(--y);
+  }
+  35% {
+    left: var(--x);
+    top: var(--y);
+    scale: 1;
+    opacity: 1;
+  }
+  100% {
+    left: var(--tx);
+    top: var(--ty);
+    scale: 0.35;
+    rotate: calc(var(--r) + 50deg);
+    opacity: 0;
+  }
+}
+@keyframes bh-stamp {
+  0% {
+    scale: 2.6;
+    opacity: 0;
+  }
+  14% {
+    scale: 1;
+    opacity: 1;
+  }
+  80% {
+    scale: 1;
+    opacity: 1;
+  }
+  100% {
+    scale: 0.9;
+    opacity: 0;
+  }
+}
+@keyframes bh-stamp-in {
+  from {
+    scale: 2.4;
+    opacity: 0;
+  }
+}
+@keyframes bh-pop {
+  from {
+    scale: 0.4;
+    opacity: 0;
+  }
+}
+@keyframes bh-rise {
+  from {
+    translate: -50% 30px;
+    opacity: 0;
+  }
+}
+@keyframes bh-deal {
+  from {
+    translate: 0 -60px;
+    opacity: 0;
+    scale: 0.8;
+  }
+}
+@keyframes bh-bubble {
+  0% {
+    opacity: 0;
+    scale: 0.5;
+  }
+  12% {
+    opacity: 1;
+    scale: 1.08;
+  }
+  20%,
+  80% {
+    scale: 1;
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes bh-ring {
+  to {
+    stroke-dashoffset: 126;
+  }
+}
+@property --p {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@keyframes bh-clock {
+  to {
+    --p: 0%;
+  }
+}
+@keyframes bh-breathe {
+  50% {
+    scale: 1.06;
+  }
+}
+@keyframes bh-reveal {
+  from {
+    scale: 0.2;
+    rotate: -30deg;
+    opacity: 0;
+  }
+}
+
+html[data-motion="reduce"] .bh *,
+html[data-motion="reduce"] .bh *::before {
+  animation-duration: 0.01ms !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+html[data-motion="reduce"] .bh .bh-ring circle,
+html[data-motion="reduce"] .bh .bh-clock {
+  animation: none !important;
+}
+
+/* narrow screens: the chip sits beside the help button, clear of the coins, pause and mute on the right */
+@media (max-width: 620px) {
+  .bh .bh-top {
+    left: calc(env(safe-area-inset-left) + 78px);
+    translate: none;
+  }
+}
+
+/* ── cards: the same faces and hand size as Rung; table cards a little bigger ── */
+.bh {
+  --tc: clamp(60px, min(11vw, 14dvh), 100px);
+  --cw: clamp(96px, 8.4vw, 156px);
+}
+@media (max-aspect-ratio: 9/10) {
+  .bh {
+    --cw: 96px;
+  }
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  .bh {
+    --tc: clamp(44px, 15dvh, 70px);
+    --cw: 66px;
+  }
+}
+.bh-hand {
+  /* Rung's overlap: cards up to 68% of a card apart, closer when the hand would not fit */
+  width: min(
+    calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right)),
+    calc(var(--cw) + (var(--n) - 1) * var(--cw) * 0.68)
+  );
+  height: calc(var(--cw) * 1.4 + 14px);
+}
+.bh-card .card-face,
+.bh-tc .card-face {
+  width: 100%;
+  height: 100%;
+}
+.bh-card[data-picked="true"] .card-face {
+  box-shadow:
+    0 0 0 3px var(--gold-hi),
+    0 0 18px 4px rgba(251, 212, 138, 0.6),
+    0 10px 18px rgba(0, 0, 0, 0.5);
+}
+.bh-card:focus-visible .card-face {
+  outline: 3px solid var(--gold-hi);
+  outline-offset: 2px;
+}
+.bh-tc {
+  filter: none;
+}
+.bh-tc[data-off="true"] .card-face {
+  box-shadow:
+    0 0 0 3px rgba(224, 71, 90, 0.95),
+    0 6px 12px rgba(0, 0, 0, 0.45);
+}
+.bh-tc[data-off="true"] {
+  filter: none;
+}

@@ -1,0 +1,75 @@
+.pwa-toast,
+.pwa-ios {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 10px 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(18, 12, 5, 0.96);
+  color: var(--bone);
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 13px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+.pwa-toast-go,
+.pwa-install {
+  all: unset;
+  cursor: pointer;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: linear-gradient(var(--gold-hi), var(--gold-deep));
+  color: var(--ink);
+  font-family: var(--font-oswald), sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.pwa-toast-x {
+  all: unset;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  color: var(--dim);
+  font-size: 22px;
+  line-height: 1;
+}
+.pwa-ios {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px 44px 14px 16px;
+}
+.pwa-ios p {
+  margin: 0;
+}
+.pwa-ios .pwa-toast-x {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+.pwa-ios-note {
+  color: var(--dim);
+  font-size: 11.5px;
+}
+.pwa-share {
+  width: 16px;
+  height: 16px;
+  vertical-align: -3px;
+  color: var(--gold-hi);
+}
+.pwa-toast-go:focus-visible,
+.pwa-install:focus-visible,
+.pwa-toast-x:focus-visible {
+  outline: 2px solid var(--gold-hi);
+  outline-offset: 2px;
+}

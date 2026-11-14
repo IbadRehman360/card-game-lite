@@ -1,0 +1,366 @@
+/*
+ * One look for every modal, panel and popup in the app.
+ * Loaded from the root layout. The `:root:root` prefix lets these rules win over the
+ * older per-screen layers (game.css, menu.css, shop.css …) without rewriting them.
+ *
+ *   panel     dark wood #1d150e → #160f0a, 1px gold edge, radius 16, deep shadow
+ *   title     Oswald 600, gold
+ *   subtitle  Oswald 500, small caps, cream at 70%
+ *   buttons   gold primary, dark-wood ghost with an orange edge, full width, stacked
+ *   backdrop  dark, no blur
+ */
+:root {
+  --modal-bg: linear-gradient(180deg, #1d150e, #160f0a);
+  --modal-edge: rgba(242, 193, 78, 0.35);
+  --modal-radius: 16px;
+  --modal-shadow: 0 18px 48px rgba(0, 0, 0, 0.6);
+  --modal-backdrop: rgba(10, 6, 3, 0.6);
+  --modal-title: #ffd873;
+  --modal-text: #f4ecd8;
+  --modal-sub: rgba(244, 236, 216, 0.7);
+  --modal-gold: linear-gradient(180deg, #fbd48a, #f0ad3a 50%, #c2711c);
+  --modal-ghost: linear-gradient(180deg, #2f2116, #261a11);
+  --modal-ghost-hover: linear-gradient(180deg, #3a2a1a, #2e2014);
+  --modal-orange: #b8762a;
+}
+
+/* ── reusable classes for new popups ── */
+.modal-panel {
+  box-sizing: border-box;
+  width: min(92vw, 380px);
+  padding: 20px;
+  background: var(--modal-bg);
+  border: 1px solid var(--modal-edge);
+  border-radius: var(--modal-radius);
+  box-shadow: var(--modal-shadow);
+  color: var(--modal-text);
+  text-align: center;
+  animation: modal-in 0.18s ease-out both;
+}
+.modal-title {
+  margin: 0;
+  font: 600 24px/1.15 var(--font-oswald), sans-serif;
+  color: var(--modal-title);
+}
+.modal-sub {
+  margin: 4px 0 0;
+  font: 500 12.5px/1.3 var(--font-oswald), sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--modal-sub);
+}
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 16px;
+}
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+html[data-motion="reduce"] .modal-panel {
+  animation: none;
+}
+
+/* ── backdrops ── */
+:root:root .result,
+:root:root .pn-end {
+  background: var(--modal-backdrop);
+  backdrop-filter: none;
+}
+:root:root .sheet::backdrop {
+  background: var(--modal-backdrop);
+  backdrop-filter: none;
+}
+:root:root .shop-backdrop {
+  background: var(--modal-backdrop);
+  backdrop-filter: none;
+}
+
+/* ── panels ── */
+:root:root .result-card,
+:root:root .pn-end-card,
+:root:root .sheet-panel,
+:root:root .patti-ask,
+:root:root .bh-away {
+  box-sizing: border-box;
+  background: var(--modal-bg);
+  border: 1px solid var(--modal-edge);
+  border-radius: var(--modal-radius);
+  box-shadow: var(--modal-shadow);
+  color: var(--modal-text);
+  animation: modal-in 0.18s ease-out both;
+}
+:root:root .result-card,
+:root:root .pn-end-card,
+:root:root .patti-ask {
+  width: min(92vw, 380px);
+  padding: 20px;
+  gap: 0;
+}
+:root:root .pn-end .pn-end-card {
+  animation-delay: 0.9s;
+}
+:root:root .sheet-panel {
+  width: min(92vw, 460px);
+}
+:root:root .sheet[data-wide="true"] .sheet-panel {
+  width: min(94vw, 880px);
+}
+:root:root .bh-away {
+  padding: 14px 18px;
+}
+
+/* ── titles ── */
+:root:root .result-title,
+:root:root .result-title[data-tone],
+:root:root .pn-end-card h2,
+:root:root .pn-end[data-tone] h2,
+:root:root .sheet-head h2 {
+  margin: 0;
+  font: 600 clamp(22px, 3.2dvh, 26px) / 1.15 var(--font-oswald), sans-serif;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--modal-title);
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+}
+:root:root .result-title[data-tone="bad"],
+:root:root .pn-end[data-tone="lose"] h2 {
+  color: var(--modal-text);
+}
+
+/* ── subtitles ── */
+:root:root .result-kicker,
+:root:root .result-sub,
+:root:root .pn-end-kicker,
+:root:root .patti-ask small {
+  margin: 4px 0 0;
+  font: 500 12.5px/1.3 var(--font-oswald), sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--modal-sub);
+}
+:root:root .patti-ask p,
+:root:root .bh-away b {
+  margin: 0;
+  font: 600 19px/1.2 var(--font-oswald), sans-serif;
+  color: var(--modal-text);
+}
+:root:root .result-plain b,
+:root:root .result-plain b[data-team] {
+  color: var(--modal-text);
+}
+:root:root .result-plain b[data-team="0"] {
+  color: var(--modal-title);
+}
+:root:root .result-plain small,
+:root:root .result-plain i {
+  color: var(--modal-sub);
+}
+
+/* coins won or lost: cream, gold when won */
+:root:root .result-coins {
+  margin: 10px 0 0;
+  font: 600 17px/1.1 var(--font-oswald), sans-serif;
+  color: var(--modal-text);
+}
+:root:root .result-coins[data-won="true"] {
+  color: var(--modal-title);
+}
+
+/* ── buttons ── */
+:root:root .result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 16px;
+}
+:root:root .pn-end-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 12px;
+}
+:root:root .result-next,
+:root:root .result-menu,
+:root:root .pn-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 50px;
+  border-radius: 12px;
+  font: 700 17px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  cursor: pointer;
+  transition: transform 0.12s, filter 0.15s;
+}
+:root:root .result-next,
+:root:root .pn-btn[data-kind="primary"] {
+  background: var(--modal-gold);
+  border: 2px solid #2a170f;
+  color: #140d02;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 0 #4f2c08, 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+:root:root .result-menu,
+:root:root .pn-btn:not([data-kind="primary"]) {
+  background: var(--modal-ghost);
+  border: 1.5px solid var(--modal-orange);
+  color: var(--modal-text);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
+}
+:root:root .result-next:hover,
+:root:root .pn-btn[data-kind="primary"]:hover {
+  filter: brightness(1.06);
+}
+:root:root .result-menu:hover,
+:root:root .pn-btn:not([data-kind="primary"]):hover {
+  background: var(--modal-ghost-hover);
+  border-color: #f2a03d;
+}
+:root:root .result-next:active,
+:root:root .result-menu:active,
+:root:root .pn-btn:active {
+  transform: translateY(2px);
+}
+:root:root .result-next:focus-visible,
+:root:root .result-menu:focus-visible,
+:root:root .pn-btn:focus-visible {
+  outline: 2px solid #fff3d6;
+  outline-offset: 3px;
+}
+/* side by side where the screen asked for it: the sideshow ask and "got away" */
+:root:root .patti-ask-row,
+:root:root .bh-away-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 12px;
+}
+:root:root .bh-away-row > * {
+  flex: 1;
+  height: 44px;
+}
+
+/* ── the sheet (rules, settings, …): gold title on dark, gold square close ── */
+:root:root .sheet-head {
+  padding: 14px 14px 10px 20px;
+  background: none;
+  border-bottom: 1px solid rgba(242, 193, 78, 0.18);
+}
+:root:root .sheet-close {
+  width: 44px;
+  height: 44px;
+  border: 3px solid #140d02;
+  border-radius: 8px;
+  background: var(--modal-gold);
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.4), 0 4px 0 #4f2c08, 0 4px 0 3px #140d02;
+}
+:root:root .sheet-close svg {
+  stroke: #140d02;
+}
+:root:root .sheet-close:hover {
+  filter: brightness(1.07);
+}
+
+/* ── the shop: same dark panel, kept wide for the packs ── */
+:root:root .shop-frame {
+  background: var(--modal-bg);
+  border: 1px solid var(--modal-edge);
+  border-radius: var(--modal-radius);
+  box-shadow: var(--modal-shadow);
+  animation: modal-in 0.18s ease-out both;
+}
+:root:root .shop-banner {
+  padding: 6px 22px 7px;
+  border: 1px solid var(--modal-edge);
+  border-radius: 10px;
+  background: #1d150e;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+:root:root .shop-banner::before,
+:root:root .shop-banner::after {
+  display: none;
+}
+:root:root .shop-banner h2 {
+  font: 600 22px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.06em;
+  color: var(--modal-title);
+  text-shadow: none;
+}
+:root:root .shop-close {
+  right: -10px;
+  top: -12px;
+  width: 44px;
+  height: 44px;
+  border: 3px solid #140d02;
+  border-radius: 8px;
+  background: var(--modal-gold);
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.4), 0 4px 0 #4f2c08, 0 4px 0 3px #140d02;
+}
+:root:root .shop-close svg {
+  width: 20px;
+  height: 20px;
+  stroke: #140d02;
+  stroke-width: 3.5;
+  filter: none;
+}
+/* buy buttons: gold, never green */
+:root:root .shop-buy {
+  border: 2px solid #2a170f;
+  background: var(--modal-gold);
+  color: #140d02;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), 0 3px 0 #4f2c08;
+}
+:root:root .shop-buy:active,
+:root:root .shop-buy[data-busy="true"] {
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), 0 1px 0 #4f2c08;
+}
+
+/* ── short sideways phones ── */
+@media (max-height: 520px) {
+  :root:root .result-card,
+  :root:root .pn-end-card,
+  :root:root .patti-ask {
+    padding: 14px 16px;
+  }
+  :root:root .result-actions {
+    flex-direction: row;
+    margin-top: 12px;
+  }
+  :root:root .result-next,
+  :root:root .result-menu,
+  :root:root .pn-btn {
+    height: 42px;
+    font-size: 15px;
+  }
+}
+
+html[data-motion="reduce"] .result-card,
+html[data-motion="reduce"] .pn-end-card,
+html[data-motion="reduce"] .sheet-panel,
+html[data-motion="reduce"] .patti-ask,
+html[data-motion="reduce"] .bh-away,
+html[data-motion="reduce"] .shop-frame {
+  animation: none !important;
+}
+
+/* 3 Patti's result had its own copy of this look; keep it on the shared edge and width */
+:root:root .result-card.patti-result {
+  width: min(92vw, 380px);
+  border: 1px solid var(--modal-edge);
+  box-shadow: var(--modal-shadow);
+  background: var(--modal-bg);
+}

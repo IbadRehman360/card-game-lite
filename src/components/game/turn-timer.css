@@ -1,0 +1,106 @@
+/* ─── the turn timer: shared by every game ─── */
+.turn-timer {
+  --tt: #ffd873;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 14px 3px 3px;
+  font-family: var(--font-oswald), sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  color: #140d02;
+  background: var(--tt);
+  border: 2px solid #140d02;
+  border-radius: 999px;
+  box-shadow: 0 3px 0 #000, 0 0 18px color-mix(in srgb, var(--tt) 55%, transparent);
+  white-space: nowrap;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.turn-timer[data-tone="orange"] {
+  --tt: #f2a03c;
+}
+.turn-timer[data-tone="red"] {
+  --tt: #e0573c;
+  color: #fff4e6;
+  animation: tt-pulse 0.9s ease-in-out infinite;
+}
+.tt-dial {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 50%;
+  background: #140d02;
+}
+.tt-dial svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.tt-dial circle {
+  fill: none;
+  stroke-width: 4;
+}
+.tt-track {
+  stroke: #3a2a1a;
+}
+.tt-ring {
+  stroke: var(--tt);
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+  animation: tt-drain var(--secs, 15s) linear both;
+  transition: stroke 0.3s;
+}
+.turn-timer[data-paused] .tt-ring,
+.turn-timer[data-paused] {
+  animation-play-state: paused;
+}
+.tt-dial b {
+  position: relative;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--tt);
+  font-variant-numeric: tabular-nums;
+}
+.tt-label {
+  font-size: 15px;
+}
+@keyframes tt-drain {
+  to {
+    stroke-dashoffset: 100;
+  }
+}
+@keyframes tt-pulse {
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 3px 0 #000, 0 0 26px #e0573c;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .turn-timer[data-tone="red"] {
+    animation: none;
+  }
+}
+html[data-motion="reduce"] .turn-timer[data-tone="red"] {
+  animation: none;
+}
+
+/* the old turn plate (Rung, Bluff) steps aside for the timer */
+.turn-plate[data-on="true"]:has(.turn-timer) {
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+.turn-plate .turn-timer .tt-label {
+  font-size: 18px;
+}

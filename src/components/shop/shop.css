@@ -1,0 +1,913 @@
+/* ─── coins: the pill, the cost tag and the shop ─── */
+
+/* chunky outlined lettering, used for numbers and titles */
+.shop,
+.coin-pill {
+  --ink: #2b1704;
+  --outline:
+    -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink), 2px 2px 0 var(--ink),
+    0 -2px 0 var(--ink), 0 2px 0 var(--ink), -2px 0 0 var(--ink), 2px 0 0 var(--ink), 0 4px 0 var(--ink);
+}
+
+/* ── cost tag ── */
+.cost-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 3px;
+  border-radius: 999px;
+  background: rgba(20, 12, 4, 0.55);
+  font: 700 13px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.04em;
+  color: #ffe48a;
+  vertical-align: middle;
+}
+.cost-tag img {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+/* ── coin pill ── */
+.coin-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  font-family: var(--font-oswald), sans-serif;
+}
+.coin-pill-body {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: 34px;
+  min-width: 96px;
+  padding: 0 34px 0 34px;
+  margin-left: 14px;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  background: linear-gradient(#3a2614, #1c1108);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.12), 0 3px 0 rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+.coin-pill-icon {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  translate: 0 -50%;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.45));
+}
+.coin-pill-icon img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.coin-pill-icon[data-pulse="true"] {
+  animation: coin-pulse 0.6s 0.55s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+.coin-pill-count {
+  flex: 1;
+  text-align: right;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #fff;
+  text-shadow: 0 2px 0 var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.coin-pill[data-loading="true"] .coin-pill-count {
+  color: rgba(255, 255, 255, 0.5);
+}
+.coin-pill-plus {
+  all: unset;
+  position: absolute;
+  right: -4px;
+  top: 50%;
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--ink);
+  border-radius: 9px;
+  background: linear-gradient(#8ee34c, #3fa21b);
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.45), inset 0 -3px 0 rgba(0, 0, 0, 0.25), 0 3px 0 var(--ink);
+  cursor: pointer;
+  transition: translate 0.08s;
+}
+.coin-pill-plus svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 1.5px 0 var(--ink));
+}
+.coin-pill-plus:active {
+  translate: 0 calc(-50% + 2px);
+}
+.coin-pill-body:focus-visible,
+.coin-pill-plus:focus-visible {
+  outline: 2px solid #ffe48a;
+  outline-offset: 2px;
+}
+.coin-pill[data-compact="true"] {
+  height: 32px;
+}
+.coin-pill[data-compact="true"] .coin-pill-body {
+  height: 28px;
+  min-width: 76px;
+  padding: 0 30px 0 28px;
+  margin-left: 11px;
+}
+.coin-pill[data-compact="true"] .coin-pill-icon {
+  width: 32px;
+  height: 32px;
+}
+.coin-pill[data-compact="true"] .coin-pill-count {
+  font-size: 16px;
+}
+.coin-pill[data-compact="true"] .coin-pill-plus {
+  width: 26px;
+  height: 26px;
+}
+.coin-pill-fly {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  pointer-events: none;
+}
+.coin-pill-fly img {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: -9px;
+  top: -9px;
+  opacity: 0;
+  animation: coin-in 0.6s calc(var(--i) * 70ms) cubic-bezier(0.5, 0, 0.7, 1) both;
+}
+@keyframes coin-in {
+  0% {
+    opacity: 0;
+    transform: translate(calc(-30px + var(--i) * 14px), 46px) scale(0.6);
+  }
+  25% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
+  }
+}
+@keyframes coin-pulse {
+  0%,
+  100% {
+    scale: 1;
+  }
+  45% {
+    scale: 1.3;
+  }
+}
+
+/* ── shop ── */
+.shop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left));
+  font-family: var(--font-oswald), sans-serif;
+  color: #fff;
+}
+.shop-backdrop {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(20, 10, 2, 0.6), rgba(5, 2, 0, 0.88));
+  backdrop-filter: blur(3px);
+  animation: shop-fade 0.2s ease-out both;
+}
+.shop-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(940px, 100%);
+  height: min(640px, 100%);
+  padding: 34px 18px 10px;
+  border: 4px solid var(--ink);
+  border-radius: 22px;
+  /* wood planks around a dark stone floor */
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0)) padding-box,
+    repeating-linear-gradient(90deg, #8a5228 0 46px, #7a4620 46px 48px, #925a2c 48px 96px, #6e3e1c 96px 98px) padding-box;
+  box-shadow:
+    inset 0 0 0 4px #b97a3e,
+    inset 0 0 0 7px var(--ink),
+    0 10px 0 #1a0d03,
+    0 18px 40px rgba(0, 0, 0, 0.6);
+  animation: shop-pop 0.32s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+.shop-banner {
+  position: absolute;
+  left: 50%;
+  top: -24px;
+  translate: -50% 0;
+  padding: 6px 52px 8px;
+  border: 4px solid var(--ink);
+  border-radius: 12px;
+  background: linear-gradient(#ffe27a, #f2a91b 60%, #d4840a);
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.55), inset 0 -4px 0 rgba(0, 0, 0, 0.2), 0 5px 0 var(--ink);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+}
+.shop-banner::before,
+.shop-banner::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  width: 22px;
+  height: 100%;
+  background: #c47b0c;
+  border: 4px solid var(--ink);
+  z-index: -1;
+}
+.shop-banner h2 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: var(--outline);
+}
+.shop-close {
+  all: unset;
+  position: absolute;
+  right: -14px;
+  top: -16px;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 4px solid var(--ink);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff8a7a, #e0301e 55%, #a3160a);
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.4), 0 4px 0 var(--ink);
+  cursor: pointer;
+  z-index: 2;
+  transition: scale 0.1s;
+}
+.shop-close svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 2px 0 var(--ink));
+}
+.shop-close:hover {
+  scale: 1.06;
+}
+.shop-close:active {
+  scale: 0.92;
+}
+.shop-close:focus-visible,
+.shop-tabs button:focus-visible,
+.shop-buy:focus-visible {
+  outline: 3px solid #fff3b0;
+  outline-offset: 3px;
+}
+
+.shop-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.shop-balance {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 16px 0 48px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: linear-gradient(#3a2614, #1c1108);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.12);
+}
+.shop-balance img {
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  width: 50px;
+  height: 50px;
+  translate: 0 -50%;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.45));
+}
+.shop-balance[data-bump] img {
+  animation: coin-pulse 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.shop-balance b {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-shadow: 0 2px 0 var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.shop-tabs {
+  display: flex;
+  gap: 6px;
+}
+.shop-tabs button {
+  all: unset;
+  padding: 7px 18px 9px;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  background: linear-gradient(#8f6a44, #5e4024);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f4e2c4;
+  text-shadow: 0 2px 0 var(--ink);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.2), 0 3px 0 var(--ink);
+  cursor: pointer;
+}
+.shop-tabs button[aria-selected="true"] {
+  background: linear-gradient(#ffe27a, #e59a12);
+  color: #fff;
+  text-shadow: var(--outline);
+}
+
+.shop-need {
+  margin: 0 0 10px;
+  padding: 8px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  background: linear-gradient(#e2412c, #a71e10);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-align: center;
+  text-shadow: 0 2px 0 var(--ink);
+}
+.shop-need b {
+  font-size: 19px;
+  color: #ffe48a;
+}
+.shop-need span {
+  opacity: 0.85;
+}
+.shop-need[data-done="true"] {
+  background: linear-gradient(#5fc23a, #2f8a17);
+}
+
+.shop-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: linear-gradient(#4a4a52, #2c2c33);
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.5);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.shop-tile {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto auto;
+  justify-items: center;
+  min-height: 0;
+  padding: 8px 8px 10px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: radial-gradient(ellipse at 50% 40%, #fff7e2, #f1dcb0 70%, #ddbf86);
+  box-shadow: inset 0 -4px 0 rgba(120, 80, 30, 0.25), 0 4px 0 rgba(0, 0, 0, 0.45);
+  animation: shop-tile 0.35s calc(0.08s + var(--i) * 0.04s) cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+.shop-tile[data-tag="best"] {
+  background: radial-gradient(ellipse at 50% 40%, #fffbe8, #ffe39a 70%, #f0b94a);
+}
+.shop-tile-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b4314;
+}
+.shop-art {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 0;
+}
+.shop-art img {
+  width: auto;
+  height: 100%;
+  max-height: 120px;
+  min-height: 48px;
+  max-width: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 0 rgba(60, 30, 5, 0.3));
+  transition: scale 0.15s;
+}
+.shop-tile:hover .shop-art img {
+  scale: 1.06;
+}
+.shop-amount {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: #fff;
+  text-shadow: var(--outline);
+  margin-top: 2px;
+}
+.shop-bonus {
+  margin: 4px 0 0;
+  padding: 2px 10px 3px;
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  background: linear-gradient(#b16cff, #6f2fc9);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-shadow: 0 1.5px 0 var(--ink);
+  rotate: -3deg;
+}
+.shop-badge {
+  position: absolute;
+  top: -10px;
+  right: -8px;
+  padding: 3px 9px 4px;
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  background: linear-gradient(#ff6b5a, #d4241a);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 1.5px 0 var(--ink);
+  rotate: 8deg;
+  z-index: 1;
+}
+.shop-tile[data-tag="popular"] .shop-badge {
+  background: linear-gradient(#5ab8ff, #1f6fd1);
+}
+.shop-buy {
+  all: unset;
+  box-sizing: border-box;
+  margin-top: 8px;
+  min-width: 82%;
+  padding: 7px 14px 10px;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  background: linear-gradient(#a6ef5a, #52b521 55%, #3c9414);
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.5), inset 0 -4px 0 rgba(0, 0, 0, 0.22), 0 4px 0 var(--ink);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 2px 0 var(--ink), 0 0 2px var(--ink);
+  cursor: pointer;
+  transition:
+    translate 0.07s,
+    box-shadow 0.07s,
+    scale 0.12s;
+}
+.shop-buy:hover {
+  scale: 1.04;
+}
+.shop-buy:active,
+.shop-buy[data-busy="true"] {
+  translate: 0 3px;
+  scale: 0.96 0.92;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 0 rgba(0, 0, 0, 0.22), 0 1px 0 var(--ink);
+}
+.shop-buy:disabled {
+  filter: grayscale(0.6) brightness(0.85);
+  cursor: default;
+}
+
+.shop-history {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: linear-gradient(#f6e6c4, #e6cc98);
+  overflow: auto;
+  overscroll-behavior: contain;
+  color: #4a2d0c;
+}
+.shop-history li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-bottom: 2px dashed rgba(120, 80, 30, 0.3);
+}
+.shop-history li:last-child {
+  border-bottom: 0;
+}
+.shop-history-reason {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.shop-history-when {
+  font: 500 12px/1 var(--font-plex-mono), monospace;
+  color: rgba(74, 45, 12, 0.7);
+}
+.shop-history b {
+  min-width: 56px;
+  text-align: right;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.shop-history b[data-sign="in"] {
+  color: #2f8a17;
+}
+.shop-history b[data-sign="out"] {
+  color: #c22a17;
+}
+.shop-history .shop-empty {
+  display: block;
+  text-align: center;
+  font-size: 16px;
+  opacity: 0.7;
+  border: 0;
+}
+
+.shop-demo {
+  margin: 8px 0 0;
+  text-align: center;
+  font: 500 12px/1.2 var(--font-plex-mono), monospace;
+  letter-spacing: 0.04em;
+  color: #fbe7c0;
+  text-shadow: 0 1px 0 var(--ink);
+}
+
+.shop-toast {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  translate: -50% -50%;
+  padding: 8px 22px 10px;
+  border: 4px solid var(--ink);
+  border-radius: 14px;
+  background: linear-gradient(#ffe27a, #f2a91b);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-shadow: var(--outline);
+  box-shadow: 0 6px 0 var(--ink);
+  pointer-events: none;
+  animation: shop-toast 2.2s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+  z-index: 3;
+}
+
+.shop-flies {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+.shop-flies img {
+  position: fixed;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.4));
+  animation: shop-fly 0.9s var(--d) cubic-bezier(0.55, -0.2, 0.75, 0.6) both;
+}
+@keyframes shop-fly {
+  0% {
+    transform: translate(0, 0) scale(0.3);
+    opacity: 0;
+  }
+  15% {
+    transform: translate(calc(var(--dx) * -0.08), -40px) scale(1.15);
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(0.7);
+    opacity: 0;
+  }
+}
+@keyframes shop-pop {
+  from {
+    scale: 0.85;
+    opacity: 0;
+  }
+}
+@keyframes shop-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes shop-tile {
+  from {
+    scale: 0.7;
+    opacity: 0;
+  }
+}
+@keyframes shop-toast {
+  0% {
+    scale: 0.4;
+    opacity: 0;
+  }
+  15% {
+    scale: 1.1;
+    opacity: 1;
+  }
+  25% {
+    scale: 1;
+  }
+  80% {
+    opacity: 1;
+    translate: -50% -50%;
+  }
+  100% {
+    opacity: 0;
+    translate: -50% -90%;
+  }
+}
+
+/* narrow portrait phones: two columns */
+@media (max-width: 640px) {
+  .shop-frame {
+    padding: 32px 10px 8px;
+  }
+  .shop-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: minmax(168px, auto);
+    gap: 10px;
+    padding: 10px;
+  }
+  .shop-bar {
+    flex-wrap: wrap;
+  }
+  .shop-banner h2 {
+    font-size: 28px;
+  }
+  .shop-tabs button {
+    padding: 6px 12px 8px;
+    font-size: 15px;
+  }
+}
+/* short sideways phones: one row of packs that scrolls sideways */
+@media (max-height: 520px) and (min-width: 560px) {
+  .shop-frame {
+    padding: 26px 12px 6px;
+  }
+  .shop-banner {
+    top: -18px;
+    padding: 4px 40px 6px;
+  }
+  .shop-banner h2 {
+    font-size: 24px;
+  }
+  .shop-close {
+    width: 42px;
+    height: 42px;
+    top: -12px;
+    right: -10px;
+  }
+  .shop-bar {
+    margin-bottom: 6px;
+  }
+  .shop-balance {
+    height: 34px;
+  }
+  .shop-balance b {
+    font-size: 20px;
+  }
+  .shop-tabs button {
+    padding: 4px 12px 6px;
+    font-size: 14px;
+  }
+  .shop-need {
+    margin-bottom: 6px;
+    padding: 4px 10px;
+    font-size: 14px;
+  }
+  .shop-grid {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(132px, 1fr);
+    grid-auto-rows: 100%;
+    gap: 10px;
+    padding: 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .shop-amount {
+    font-size: 24px;
+  }
+  .shop-buy {
+    font-size: 16px;
+    padding: 5px 10px 8px;
+  }
+  .shop-demo {
+    margin-top: 4px;
+    font-size: 11px;
+  }
+}
+@media (max-height: 360px) {
+  .shop-tile-name,
+  .shop-bonus {
+    display: none;
+  }
+}
+
+html[data-motion="reduce"] .shop-frame,
+html[data-motion="reduce"] .shop-backdrop,
+html[data-motion="reduce"] .shop-tile,
+html[data-motion="reduce"] .shop-flies img,
+html[data-motion="reduce"] .coin-pill-fly img,
+html[data-motion="reduce"] .coin-pill-icon,
+html[data-motion="reduce"] .shop-balance img {
+  animation: none;
+}
+html[data-motion="reduce"] .shop-flies,
+html[data-motion="reduce"] .coin-pill-fly {
+  display: none;
+}
+html[data-motion="reduce"] .shop-toast {
+  animation: shop-fade 0.2s both;
+}
+
+/* prices: what each game costs and pays */
+.shop-prices li {
+  grid-template-columns: auto 1fr auto;
+}
+.shop-prices .shop-history-when {
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+/* four packs, 2 × 2, each with a picture that never collapses */
+.shop-grid {
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: auto;
+  align-content: center;
+}
+.shop-tile {
+  grid-template-rows: auto auto auto auto;
+  gap: 2px;
+}
+.shop-art {
+  height: clamp(64px, 16dvh, 130px);
+}
+.shop-art img {
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+}
+@media (max-width: 640px), (max-aspect-ratio: 1/1) {
+  .shop-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: auto;
+  }
+  .shop-art {
+    height: clamp(60px, 13dvh, 110px);
+  }
+}
+@media (max-height: 520px) and (min-aspect-ratio: 1/1) {
+  .shop-art {
+    height: clamp(44px, 20dvh, 80px);
+  }
+}
+
+/* room under the buy buttons so the tiles never get cut and no scroll bar shows */
+.shop-grid {
+  padding-bottom: 18px;
+  scrollbar-width: none;
+}
+.shop-grid::-webkit-scrollbar {
+  display: none;
+}
+.shop-tile {
+  margin-bottom: 4px;
+}
+.shop-art {
+  height: clamp(56px, 13dvh, 116px);
+}
+@media (max-width: 640px), (max-aspect-ratio: 1/1) {
+  .shop-art {
+    height: clamp(50px, 10dvh, 96px);
+  }
+}
+@media (max-height: 520px) and (min-aspect-ratio: 1/1) {
+  .shop-art {
+    height: clamp(40px, 16dvh, 70px);
+  }
+}
+
+/* a touch smaller: tiles, picture, amount and buy button */
+.shop-grid {
+  gap: 10px;
+}
+.shop-tile {
+  padding: 6px 8px 8px;
+}
+.shop-tile-name {
+  font-size: 13px;
+}
+.shop-art {
+  height: clamp(48px, 11dvh, 98px);
+}
+.shop-amount {
+  font-size: 25px;
+}
+.shop-buy {
+  padding: 5px 12px 8px;
+  font-size: 15px;
+  width: 78%;
+  box-sizing: border-box;
+}
+@media (max-width: 640px), (max-aspect-ratio: 1/1) {
+  .shop-art {
+    height: clamp(44px, 8.5dvh, 80px);
+  }
+}
+@media (max-height: 520px) and (min-aspect-ratio: 1/1) {
+  .shop-art {
+    height: clamp(36px, 14dvh, 60px);
+  }
+}
+.shop-buy {
+  min-width: 0;
+}
+
+/* the pack grid hugs its tiles: no grey band above and below */
+.shop-grid {
+  flex: 0 1 auto;
+  align-content: start;
+  padding: 6px;
+  gap: 8px;
+  background: linear-gradient(#2a1d13, #1d150e);
+  border-color: rgba(184, 118, 42, 0.6);
+}
+
+/* coins changed: the amount floats off the pill (+ gold, − cream) */
+.coin-pill-delta {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  margin-top: 4px;
+  pointer-events: none;
+  font: 700 15px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.02em;
+  color: #f4ecd8;
+  text-shadow: 0 2px 0 #2b1704, 0 0 6px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+  animation: coin-delta 1.4s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+.coin-pill-delta[data-up="true"] {
+  color: #ffd873;
+}
+@keyframes coin-delta {
+  0% { opacity: 0; transform: translate(-50%, -6px) scale(0.8); }
+  15% { opacity: 1; transform: translate(-50%, 0) scale(1.1); }
+  30% { transform: translate(-50%, 0) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, 10px); }
+}
+html[data-motion="reduce"] .coin-pill-delta { animation-duration: 1.2s; }
+
+/* the shop panel hugs its packs: no empty band under the grid */
+:root:root .shop-frame {
+  height: auto;
+  max-height: 100%;
+}
+:root:root .shop-grid {
+  flex: 0 0 auto;
+}

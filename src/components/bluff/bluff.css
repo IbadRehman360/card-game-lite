@@ -1,0 +1,1114 @@
+/* ─── Bluff ─── */
+.bluff .bluff-table-card {
+  animation: tile-pop 0.45s var(--ease-out);
+}
+.bluff .bluff-table-card b {
+  color: #ffd873;
+}
+.bluff-help {
+  all: unset;
+  cursor: pointer;
+}
+.bluff-help span {
+  font: 700 18px/1 var(--font-oswald), sans-serif;
+}
+
+/* the last claim, top left */
+.bluff-claim {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 16px);
+  left: calc(env(safe-area-inset-left) + 16px);
+  display: grid;
+  gap: 4px;
+  padding: 8px 14px 10px;
+  background: var(--panel);
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 2px rgba(240, 173, 58, 0.28),
+    0 4px 0 #000;
+  pointer-events: none;
+}
+.bluff-claim small {
+  font: 600 12px/1 var(--font-plex-mono), monospace;
+  color: var(--dim);
+}
+.bluff-claim b {
+  font: 700 24px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+/* revolver cylinder */
+.bluff-cyl {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+.bluff-cyl-body {
+  fill: #5b5f66;
+  stroke: #1b1b1d;
+  stroke-width: 2;
+}
+.bluff-cyl-hole {
+  fill: #d8a948;
+  stroke: #1b1b1d;
+  stroke-width: 1.4;
+}
+.bluff-cyl-hole[data-used="true"] {
+  fill: #1b1b1d;
+}
+.bluff-cyl-pin {
+  fill: #2a2b2e;
+}
+.bluff-cyl[data-dead="true"] .bluff-cyl-body {
+  fill: #7a1c16;
+}
+.bluff-cyl[data-spin="true"] {
+  animation: bluff-spin 0.5s cubic-bezier(0.3, 0.6, 0.5, 1) infinite;
+}
+@keyframes bluff-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+/* seats */
+.bluff-seat {
+  min-width: 112px;
+}
+.bluff-seat[data-out="true"] {
+  opacity: 0.55;
+  filter: grayscale(0.7);
+}
+.bluff-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 13px/1 var(--font-plex-mono), monospace;
+  color: var(--bone);
+}
+.seat-tag[data-turn="true"] .bluff-stats {
+  color: var(--ink);
+}
+.bluff-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 2px;
+}
+.bluff-count i {
+  width: 9px;
+  height: 13px;
+  border-radius: 2px;
+  border: 1.5px solid currentColor;
+  background: repeating-linear-gradient(45deg, rgba(242, 193, 78, 0.5) 0 2px, transparent 2px 4px), #7c1d2b;
+}
+.bluff-move {
+  position: absolute;
+  top: -14px;
+  right: -10px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--bone);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  font: 700 12px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  animation: tile-pop 0.35s var(--ease-out);
+  pointer-events: none;
+}
+.seat-tag[data-spot="right"] .bluff-move {
+  right: auto;
+  left: -10px;
+}
+.bluff-move[data-call="true"] {
+  background: #c8372d;
+  color: #fff;
+  font-size: 15px;
+}
+
+/* you */
+.bluff-wallet {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--panel);
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  box-shadow: 0 4px 0 #000;
+  font: 600 14px/1 var(--font-plex-mono), monospace;
+  color: var(--bone);
+}
+.bluff-wallet .bluff-cyl {
+  width: 26px;
+  height: 26px;
+}
+.bluff-play-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 10px;
+}
+.bluff-hand {
+  --cw: clamp(56px, 12dvh, 100px);
+  --step: min(calc(var(--cw) * 0.82), calc((100vw - 40px - var(--cw)) / max(calc(var(--n) - 1), 1)));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  min-height: calc(var(--cw) * 1.4 + 18px);
+  align-items: flex-end;
+}
+.bluff-hand li {
+  --t: calc(var(--i) - (var(--n) - 1) / 2);
+  flex: none;
+  width: var(--cw);
+  margin-left: calc(var(--step) - var(--cw));
+  transform: translateY(calc(var(--t) * var(--t) * 1.2px)) rotate(calc(var(--t) * 2.4deg));
+  transform-origin: 50% 120%;
+  animation: bluff-deal 0.4s calc(var(--i) * 0.08s + 0.2s) var(--ease-out) both;
+}
+.bluff-hand li:first-child {
+  margin-left: 0;
+}
+@keyframes bluff-deal {
+  from {
+    opacity: 0;
+    translate: 0 -70px;
+    scale: 0.6;
+  }
+}
+.bluff-card {
+  all: unset;
+  display: block;
+  width: var(--cw);
+  height: calc(var(--cw) * 1.4);
+  border-radius: calc(var(--cw) * 0.09);
+  cursor: pointer;
+  transition:
+    translate 0.15s var(--ease-out),
+    filter 0.15s;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+}
+.bluff-card:disabled {
+  cursor: default;
+}
+.bluff-hand[data-active="false"] .bluff-card {
+  filter: brightness(0.82);
+}
+.bluff-card[data-picked="true"] {
+  translate: 0 -18px;
+  outline: 3px solid var(--gold);
+  outline-offset: 1px;
+}
+.bluff-card:not(:disabled):hover {
+  translate: 0 -6px;
+}
+.bluff-card[data-picked="true"]:hover {
+  translate: 0 -18px;
+}
+.bluff-card .card-face {
+  width: 100%;
+  height: 100%;
+}
+.bluff-joker,
+.bluff-back {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: calc(var(--cw, 80px) * 0.09);
+  border: 2px solid var(--ink);
+}
+.bluff-joker {
+  background:
+    radial-gradient(circle at 50% 40%, #fff6dc, #f4ecd8 60%),
+    #f4ecd8;
+  color: #5e1220;
+  box-shadow: inset 0 0 0 3px #b8762a;
+}
+.bluff-joker b {
+  font: 700 calc(var(--cw, 80px) * 0.5) / 1 var(--font-oswald), sans-serif;
+  color: #b3121c;
+}
+.bluff-joker small {
+  font: 700 calc(var(--cw, 80px) * 0.15) / 1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.bluff-back {
+  background:
+    repeating-linear-gradient(45deg, rgba(242, 193, 78, 0.25) 0 4px, transparent 4px 9px),
+    radial-gradient(circle at 50% 50%, #b42a3e, #5e1220);
+  box-shadow: inset 0 0 0 4px #f4ecd8;
+}
+.bluff-leave {
+  all: unset;
+  align-self: center;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--bone);
+  border: 3px solid var(--ink);
+  box-shadow: 0 4px 0 #000;
+  font: 700 16px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* the two big round buttons, at the right edge */
+.bluff-actions {
+  position: absolute;
+  right: calc(env(safe-area-inset-right) + 18px);
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: tile-pop 0.3s var(--ease-out);
+}
+.bluff-round {
+  --size: clamp(76px, 15dvh, 116px);
+  all: unset;
+  position: relative;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 2px;
+  width: var(--size);
+  height: var(--size);
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 4px solid var(--ink);
+  box-shadow:
+    0 0 0 3px rgba(244, 236, 216, 0.85),
+    0 6px 0 #000;
+  cursor: pointer;
+  text-align: center;
+  transition: filter 0.15s;
+}
+.bluff-round b {
+  font: 700 calc(var(--size) * 0.24) / 1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.bluff-round small {
+  max-width: calc(var(--size) * 0.8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 calc(var(--size) * 0.11) / 1 var(--font-plex-mono), monospace;
+  opacity: 0.85;
+}
+.bluff-round[data-kind="liar"] {
+  background: radial-gradient(circle at 50% 35%, #e0473b, #8f1d17);
+  color: #fff;
+}
+.bluff-round[data-kind="play"] {
+  background: radial-gradient(circle at 50% 35%, #ffd873, #d99a1f);
+  color: var(--ink);
+}
+.bluff-round:disabled {
+  cursor: default;
+  filter: grayscale(0.7) brightness(0.6);
+}
+.bluff-round:not(:disabled):active {
+  translate: 0 4px;
+  box-shadow:
+    0 0 0 3px rgba(244, 236, 216, 0.85),
+    0 2px 0 #000;
+}
+/* the 30-second ring around PLAY */
+.bluff-ring {
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  background: conic-gradient(var(--gold) calc(var(--p, 1) * 360deg), rgba(0, 0, 0, 0.4) 0);
+  -webkit-mask: radial-gradient(circle, transparent calc(50% - 5px), #000 calc(50% - 4px));
+  mask: radial-gradient(circle, transparent calc(50% - 5px), #000 calc(50% - 4px));
+  animation: bluff-ring var(--t, 30s) linear both;
+  animation-play-state: var(--state, running);
+  pointer-events: none;
+}
+@property --p {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+@keyframes bluff-ring {
+  from {
+    --p: 1;
+  }
+  to {
+    --p: 0;
+  }
+}
+
+/* a call: cards turned over, then the trigger */
+.bluff-reveal {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -55%;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: min(480px, calc(100vw - 32px));
+  padding: 16px 18px 18px;
+  box-sizing: border-box;
+  background: rgba(20, 13, 8, 0.9);
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 2px rgba(240, 173, 58, 0.4),
+    0 12px 40px rgba(0, 0, 0, 0.6);
+  animation: tile-pop 0.35s var(--ease-out);
+  pointer-events: none;
+  z-index: 5;
+}
+.bluff-reveal-who {
+  margin: 0;
+  font: 600 15px/1.3 var(--font-plex-mono), monospace;
+  color: var(--bone);
+  text-align: center;
+}
+.bluff-reveal-who b {
+  color: var(--gold);
+}
+.bluff-reveal-cards {
+  --cw: clamp(50px, 10dvh, 84px);
+  display: flex;
+  gap: 8px;
+}
+.bluff-reveal-card {
+  width: var(--cw);
+  height: calc(var(--cw) * 1.4);
+  animation: bluff-flip 0.5s calc(var(--i) * 0.15s + 0.2s) var(--ease-out) both;
+}
+.bluff-reveal-card .card-face {
+  width: 100%;
+  height: 100%;
+}
+.bluff-reveal-card[data-bad="true"] {
+  outline: 3px solid #e0473b;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+@keyframes bluff-flip {
+  from {
+    transform: perspective(400px) rotateY(90deg);
+    opacity: 0;
+  }
+}
+.bluff-verdict {
+  margin: 0;
+  font: 700 26px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #e0473b;
+  animation: tile-pop 0.4s 0.7s var(--ease-out) both;
+}
+.bluff-verdict[data-truth="true"] {
+  color: #7fd39b;
+}
+.bluff-shot {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: 100%;
+  padding-top: 10px;
+  border-top: 1px solid rgba(240, 173, 58, 0.25);
+  animation: tile-pop 0.3s var(--ease-out);
+}
+.bluff-shot p {
+  margin: 0;
+  font: 600 14px/1.3 var(--font-plex-mono), monospace;
+  color: var(--bone);
+}
+.bluff-shot p b {
+  color: var(--gold);
+}
+.bluff-shot .bluff-cyl {
+  width: clamp(54px, 11dvh, 84px);
+  height: clamp(54px, 11dvh, 84px);
+}
+.bluff-shot strong {
+  font: 700 clamp(34px, 8dvh, 56px) / 1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bone);
+  animation: bluff-hit 0.45s var(--ease-out);
+}
+.bluff-shot[data-fired="true"] strong {
+  color: #ff4b3e;
+  text-shadow: 0 0 24px rgba(255, 75, 62, 0.7);
+}
+.bluff-shot small {
+  font: 600 13px/1 var(--font-plex-mono), monospace;
+  color: var(--dim);
+}
+.bluff-shot[data-fired="true"] {
+  animation: bluff-shake 0.4s;
+}
+@keyframes bluff-hit {
+  from {
+    scale: 2.2;
+    opacity: 0;
+  }
+}
+@keyframes bluff-shake {
+  20% {
+    translate: -6px 2px;
+  }
+  40% {
+    translate: 5px -3px;
+  }
+  60% {
+    translate: -4px 1px;
+  }
+  80% {
+    translate: 2px 0;
+  }
+}
+
+/* end */
+.bluff-standings {
+  list-style: none;
+  margin: 4px 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+.bluff-standings li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  font: 600 14px/1 var(--font-plex-mono), monospace;
+  color: var(--bone);
+}
+.bluff-standings li[data-won="true"] {
+  background: rgba(242, 193, 78, 0.2);
+  color: var(--gold);
+}
+.bluff-standings b {
+  font: 700 13px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* narrow upright phones: the round buttons sit beside each other above the hand */
+@media (max-aspect-ratio: 4/5) {
+  .bluff-actions {
+    position: static;
+    flex-direction: row-reverse;
+  }
+  .bluff-round {
+    --size: clamp(70px, 11dvh, 96px);
+  }
+  .bluff-claim b {
+    font-size: 19px;
+  }
+}
+/* small sideways phones */
+@media (max-height: 460px) {
+  .bluff-hand {
+    --cw: clamp(44px, 15dvh, 66px);
+  }
+  .bluff-round {
+    --size: clamp(60px, 19dvh, 80px);
+  }
+  .bluff-actions {
+    gap: 8px;
+  }
+  .bluff-claim {
+    padding: 6px 10px 8px;
+  }
+  .bluff-claim b {
+    font-size: 17px;
+  }
+  .bluff-reveal {
+    gap: 6px;
+    padding: 10px 14px 12px;
+  }
+  .bluff-reveal-cards {
+    --cw: clamp(36px, 13dvh, 56px);
+  }
+  .bluff-verdict {
+    font-size: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bluff-cyl[data-spin="true"],
+  .bluff-shot[data-fired="true"] {
+    animation: none;
+  }
+}
+
+/* ── your hand at Rung's card size (capped so the table and buttons still fit) ── */
+.bluff-hand {
+  --cw: min(clamp(96px, 8.4vw, 156px), 17dvh);
+}
+@media (max-aspect-ratio: 9/10) {
+  .bluff-hand {
+    --cw: min(96px, 15dvh);
+  }
+}
+@media (max-height: 560px) {
+  .bluff-hand {
+    --cw: min(66px, 17dvh);
+  }
+}
+
+/* ═══ clean pass: seats like 3 Patti, one claim pill, a compact reveal ═══ */
+
+/* the claim: one pill, small name over the claim */
+.bluff-claim {
+  gap: 3px;
+  padding: 7px 14px 8px;
+  border: 1.5px solid #b8762a;
+  border-radius: 12px;
+  background: rgba(16, 10, 5, 0.9);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+}
+.bluff-claim small {
+  font: 600 11px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(244, 236, 216, 0.6);
+}
+.bluff-claim b {
+  font-size: 20px;
+  color: #ffd873;
+}
+
+/* seats: avatar, one dark plate */
+.bluff-seat {
+  min-width: 0;
+  gap: 0;
+}
+.bluff-seat[data-out="true"] {
+  opacity: 0.5;
+  filter: grayscale(0.8);
+}
+.bluff-bot {
+  position: absolute;
+  right: -2px;
+  bottom: 8px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #16110e;
+  border: 1.5px solid rgba(246, 231, 176, 0.7);
+  box-sizing: border-box;
+}
+.bluff-bot::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 1.5px;
+  background: rgba(246, 231, 176, 0.75);
+}
+.bluff-plate {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 84px;
+  padding: 5px 12px 6px;
+  border-radius: 10px;
+  background: rgba(16, 10, 5, 0.9);
+  border: 1.5px solid color-mix(in srgb, var(--accent, #f0ad3a) 55%, transparent);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+}
+.bluff-seat .bluff-plate .seat-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 700 14px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.03em;
+  color: var(--bone);
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bluff-seat[data-turn="true"] .bluff-plate {
+  background: var(--gold);
+  border-color: #ffd873;
+}
+.bluff-seat[data-turn="true"] .bluff-plate .seat-name,
+.bluff-seat[data-turn="true"] .bluff-stats {
+  color: var(--ink);
+}
+.bluff-stats {
+  gap: 9px;
+  font: 600 12px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+  color: #ffe2a0;
+}
+.bluff-count {
+  margin: 0;
+  gap: 4px;
+}
+.bluff-count i {
+  width: 8px;
+  height: 11px;
+}
+.bluff-chambers {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.bluff-chambers .bluff-cyl {
+  width: 13px;
+  height: 13px;
+}
+.bluff-out {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #e0473b;
+}
+/* the bubble sits above the picture, clear of the plate */
+.bluff-move {
+  top: -12px;
+  right: auto;
+  left: 50%;
+  translate: -50% 0;
+  padding: 3px 8px;
+  border-width: 1.5px;
+  font-size: 11px;
+  z-index: 2;
+}
+.seat-tag[data-spot="right"] .bluff-move {
+  left: 50%;
+}
+.bluff-move[data-call="true"] {
+  font-size: 13px;
+  border-color: #5e1220;
+}
+
+/* the reveal: a compact card */
+.bluff-reveal {
+  gap: 8px;
+  width: auto;
+  min-width: 220px;
+  max-width: calc(100vw - 32px);
+  padding: 12px 20px 14px;
+  background: rgba(16, 10, 5, 0.94);
+  border: 1.5px solid #b8762a;
+  border-radius: 14px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.6);
+}
+.bluff-reveal-title {
+  margin: 0;
+  font: 700 22px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ffd873;
+}
+.bluff-reveal-who {
+  margin: -2px 0 2px;
+  font: 500 12px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(244, 236, 216, 0.65);
+}
+.bluff-reveal-cards {
+  --cw: clamp(44px, 8.5dvh, 68px);
+  gap: 6px;
+}
+.bluff-reveal-card[data-bad="true"] {
+  outline-width: 2px;
+}
+.bluff-reveal-foot {
+  display: grid;
+  place-items: center;
+  min-height: 46px;
+  width: 100%;
+  padding-top: 8px;
+  border-top: 1px solid rgba(184, 118, 42, 0.35);
+}
+.bluff-verdict {
+  font-size: 30px;
+  letter-spacing: 0.12em;
+  animation-delay: 0.6s;
+}
+.bluff-verdict[data-truth="true"] {
+  color: #ffd873;
+}
+.bluff-shot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: auto;
+  padding: 0;
+  border: 0;
+}
+.bluff-shot .bluff-cyl {
+  width: 42px;
+  height: 42px;
+}
+.bluff-shot-text {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+.bluff-shot strong {
+  font-size: 30px;
+  letter-spacing: 0.1em;
+}
+.bluff-shot strong.bluff-shot-wait {
+  color: rgba(244, 236, 216, 0.75);
+  animation: none;
+}
+.bluff-shot small {
+  font: 500 12px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(244, 236, 216, 0.6);
+}
+
+@media (max-height: 460px) {
+  .bluff-reveal {
+    gap: 5px;
+    padding: 8px 14px 10px;
+  }
+  .bluff-reveal-title {
+    font-size: 17px;
+  }
+  .bluff-reveal-cards {
+    --cw: clamp(34px, 12dvh, 50px);
+  }
+  .bluff-reveal-foot {
+    min-height: 36px;
+    padding-top: 5px;
+  }
+  .bluff-verdict,
+  .bluff-shot strong {
+    font-size: 22px;
+  }
+  .bluff-shot .bluff-cyl {
+    width: 32px;
+    height: 32px;
+  }
+  .bluff-claim b {
+    font-size: 16px;
+  }
+}
+
+/* ─── the trigger: a short cinematic ─── */
+
+/* the liar card on the shared popup look */
+.bluff-reveal {
+  background: var(--modal-bg);
+  border: 1px solid var(--modal-edge);
+  border-radius: var(--modal-radius);
+  box-shadow: var(--modal-shadow);
+  color: var(--modal-text);
+}
+.bluff-reveal .bluff-reveal-title {
+  color: var(--modal-title);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.bluff-reveal .bluff-reveal-who {
+  margin: -4px 0 2px;
+}
+
+/* while the gun is up the reveal card shrinks to a small pill out of the way */
+.bluff-reveal {
+  transition: transform 0.45s var(--ease-out);
+}
+.bluff-reveal[data-gun="true"] .bluff-reveal-title,
+.bluff-reveal[data-gun="true"] .bluff-reveal-who,
+.bluff-reveal[data-gun="true"] .bluff-reveal-cards {
+  display: none;
+}
+.bluff-reveal[data-gun="true"] {
+  min-width: 0;
+  padding: 8px 18px;
+}
+.bluff-reveal[data-gun="true"] .bluff-reveal-foot {
+  padding-top: 0;
+  border-top: 0;
+}
+.bluff-reveal[data-gun="true"][data-at="high"] {
+  transform: translateY(-26dvh);
+}
+.bluff-reveal[data-gun="true"][data-at="low"] {
+  transform: translateY(16dvh);
+}
+.bluff-shot[data-tense="true"] .bluff-shot-wait {
+  animation: bluff-beat 0.32s ease-in-out 2;
+}
+@keyframes bluff-beat {
+  50% {
+    transform: scale(1.18);
+  }
+}
+
+/* the player with the gun to their head */
+.bluff-seat[data-aim="true"] .bluff-plate {
+  border-color: #e0573c;
+  animation: bluff-beat 0.64s ease-in-out infinite;
+}
+.bluff-seat[data-aim="true"] .seat-pfp-wrap {
+  animation: bluff-tremble 0.12s linear infinite;
+}
+@keyframes bluff-tremble {
+  25% {
+    transform: translate(-1px, 0.5px);
+  }
+  75% {
+    transform: translate(1px, -0.5px);
+  }
+}
+/* click: a relieved hop */
+.bluff-seat[data-relief="true"] .seat-pfp-wrap {
+  animation: bluff-relief 0.6s var(--ease-out);
+}
+@keyframes bluff-relief {
+  30% {
+    transform: translateY(-12px) scale(1.08);
+  }
+  60% {
+    transform: translateY(2px) scale(0.98);
+  }
+}
+/* bang: blood, the head goes over, greyed, stamped Out */
+.bluff-seat .seat-pfp-wrap {
+  position: relative;
+}
+.bluff-seat[data-shot="true"] .seat-pfp {
+  transform: rotate(-78deg) translate(-6px, 6px);
+  filter: grayscale(0.85) brightness(0.75);
+  transition:
+    transform 0.5s cubic-bezier(0.5, 0, 0.75, 0) 0.35s,
+    filter 0.6s ease 0.35s;
+}
+.bluff-seat[data-shot="true"] {
+  filter: none;
+  opacity: 1;
+}
+.bluff-splat {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 120%;
+  height: 120%;
+  translate: -50% -50%;
+  pointer-events: none;
+  z-index: 2;
+  animation: bluff-splat 0.22s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+@keyframes bluff-splat {
+  from {
+    transform: scale(0.2) rotate(-20deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0);
+    opacity: 0.92;
+  }
+}
+.bluff-stamp {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  z-index: 3;
+  padding: 2px 7px;
+  border: 2px solid #f4ecd8;
+  border-radius: 5px;
+  background: rgba(94, 18, 32, 0.92);
+  color: #f4ecd8;
+  font: 700 13px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  rotate: -14deg;
+  animation: bluff-stamp 0.3s cubic-bezier(0.3, 1.8, 0.5, 1) 0.75s both;
+}
+@keyframes bluff-stamp {
+  from {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* over the whole screen: darkened edges, a flash, blood on the glass */
+.bluff-fx {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+.bluff-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, transparent 42%, rgba(8, 3, 2, 0.82) 100%);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.bluff-vignette[data-on="true"] {
+  opacity: 0.75;
+}
+.bluff-vignette[data-tense="true"] {
+  opacity: 1;
+  animation: bluff-pulse 0.32s ease-in-out 2;
+}
+@keyframes bluff-pulse {
+  50% {
+    transform: scale(0.96);
+  }
+}
+.bluff-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff4dc;
+  animation: bluff-flash 0.38s ease-out both;
+}
+@keyframes bluff-flash {
+  from {
+    opacity: 0.7;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.bluff-hit-you {
+  position: absolute;
+  inset: 0;
+  animation: bluff-hit-fade 2.2s ease-in both;
+}
+@keyframes bluff-hit-fade {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.bluff-hit-splat {
+  position: absolute;
+  width: min(46vw, 46dvh);
+  height: min(46vw, 46dvh);
+  animation: bluff-splat 0.2s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.bluff-hit-splat:nth-child(1) {
+  left: -8%;
+  top: -6%;
+}
+.bluff-hit-splat:nth-child(2) {
+  right: -10%;
+  top: 22%;
+  width: min(34vw, 34dvh);
+  height: min(34vw, 34dvh);
+  animation-delay: 0.05s;
+}
+.bluff-hit-splat:nth-child(3) {
+  left: 8%;
+  bottom: -8%;
+  width: min(28vw, 28dvh);
+  height: min(28vw, 28dvh);
+  animation-delay: 0.09s;
+}
+
+html[data-motion="reduce"] .bluff-reveal,
+html[data-motion="reduce"] .bluff-seat .seat-pfp-wrap,
+html[data-motion="reduce"] .bluff-seat .bluff-plate,
+html[data-motion="reduce"] .bluff-vignette,
+html[data-motion="reduce"] .bluff-shot-wait {
+  animation: none !important;
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bluff-seat .seat-pfp-wrap,
+  .bluff-vignette {
+    animation: none !important;
+  }
+}
+
+/* ─── one tidy top-left panel: round small, table card big ─── */
+.game.bluff .hud-top.bluff-hud {
+  top: calc(env(safe-area-inset-top) + 16px);
+  left: calc(env(safe-area-inset-left) + 16px);
+  translate: none;
+  gap: 0;
+}
+.bluff-hud-card {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  justify-items: start;
+  gap: 3px;
+  min-width: 78px;
+  max-width: 116px;
+  padding: 6px 12px 7px;
+  border-radius: 10px;
+  background: var(--modal-bg, #1d150e);
+  border: 1.5px solid #b8762a;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  animation: tile-pop 0.45s var(--ease-out);
+}
+.bluff-hud-card small {
+  font: 500 11px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(244, 236, 216, 0.62);
+}
+.bluff-hud-card b {
+  font: 700 21px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ffd873;
+}
+.bluff-hud-card:focus-visible {
+  outline: 2px solid #f2a03d;
+  outline-offset: 2px;
+}
+@media (max-height: 460px) {
+  .game.bluff .hud-top.bluff-hud {
+    top: calc(env(safe-area-inset-top) + 10px);
+  }
+  .bluff-hud-card {
+    padding: 4px 10px 5px;
+  }
+  .bluff-hud-card b {
+    font-size: 17px;
+  }
+}
+
+/* the claim bubble sits above the whole tag, never on the face (below it for the top seat) */
+.bluff-seat .bluff-move {
+  top: auto;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  right: auto;
+  translate: -50% 0;
+}
+.seat-tag[data-spot="top"].bluff-seat .bluff-move {
+  bottom: auto;
+  top: calc(100% + 4px);
+}

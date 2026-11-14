@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: var(--font-oswald);
+  --font-mono: var(--font-plex-mono);
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Game tokens.
+   A cellar card room after hours: pitch dark, one lamp over the
+   table, and painted yellow on everything you can press.
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --pitch: #070502;
+  --panel: #120c05;
+  --line: rgba(240, 173, 58, 0.24);
+  --bone: #fff4d6;
+  --dim: #b8a37a;
+  /* the yellow everything you can press is painted in */
+  --gold: #f0ad3a;
+  --gold-hi: #fbd48a;
+  --gold-deep: #c2711c;
+  --gold-shadow: #4f2c08;
+  --ink: #140d02;
+  --slab: #1d1407;
+  --red: #e0475a;
+  /* older names, kept so nothing breaks */
+  --brass: var(--gold);
+  --brass-hi: var(--gold-hi);
+  --brass-lo: var(--gold-shadow);
+  --warn: #ff8a5c;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --pad: clamp(16px, 4vw, 64px);
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--pitch);
+  color: var(--bone);
+}
+
+body {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  position: fixed;
+  inset: 0;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--brass) 55%, transparent);
+  color: var(--pitch);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brass-hi);
+  outline-offset: 3px;
+}
+
+/* Motion: honour the OS setting and the in-game toggle (html[data-motion="reduce"]). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+html[data-motion="reduce"] *,
+html[data-motion="reduce"] *::before,
+html[data-motion="reduce"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+/* Slow phones (html[data-perf="low"], set by lib/perf): blur over a moving 3D canvas is recomputed
+   every frame, so it goes; frosted panels fall back to a darker solid. */
+html[data-perf="low"] *,
+html[data-perf="low"] *::before,
+html[data-perf="low"] *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Touch screens: no double-tap zoom delay on buttons, no text selection while playing */
+button,
+[role="button"] {
+  touch-action: manipulation;
+}
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Slow phones: glows that animate box-shadow repaint every frame; keep them still */
+html[data-perf="low"] .seat-tag[data-turn="true"],
+html[data-perf="low"] .seat-tag[data-turn="true"] .seat-face,
+html[data-perf="low"] .patti-seat[data-turn="true"] {
+  animation: none !important;
+}

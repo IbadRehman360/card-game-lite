@@ -1,0 +1,66 @@
+{
+  "$comment": "Every asset the game uses: where it lives, where it came from and its licence. Update this whenever a file is added, replaced or removed.",
+  "version": 1,
+  "textures": [
+    {
+      "id": "wall-planks",
+      "path": "/assets/textures/wall-planks.webp",
+      "use": "Back wall of the card room (tiled, darkened and lamp-lit in CSS).",
+      "size": "768x768",
+      "source": "https://polyhaven.com/a/wood_plank_wall",
+      "author": "Poly Haven",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "table-oak",
+      "path": "/assets/textures/table-oak.webp",
+      "use": "Wooden rim and apron of the card table.",
+      "size": "768x768",
+      "source": "https://polyhaven.com/a/dark_wooden_planks",
+      "author": "Poly Haven",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "felt-velour",
+      "path": "/assets/textures/felt-velour.webp",
+      "use": "Table felt, multiplied down to oxblood.",
+      "size": "768x738",
+      "source": "https://polyhaven.com/a/velour_velvet",
+      "author": "Colormass, Rico Cilliers (Poly Haven)",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "floor-planks",
+      "path": "/assets/textures/floor-planks.webp",
+      "use": "Wainscot panels below the shelf line and the plaque/sheet wood.",
+      "size": "768x768",
+      "source": "https://polyhaven.com/a/weathered_brown_planks",
+      "author": "Poly Haven",
+      "license": "CC0-1.0"
+    }
+  ],
+  "illustrations": [
+    { "id": "mungo", "path": "src/components/characters/mungo.tsx", "use": "Badger bust (inline SVG, animated).", "author": "Original, drawn for this project", "license": "Project" },
+    { "id": "corvina", "path": "src/components/characters/corvina.tsx", "use": "Raven bust (inline SVG, animated).", "author": "Original, drawn for this project", "license": "Project" },
+    { "id": "sal", "path": "src/components/characters/big-sal.tsx", "use": "Walrus bust (inline SVG, animated).", "author": "Original, drawn for this project", "license": "Project" },
+    { "id": "wart", "path": "src/components/characters/wart.tsx", "use": "Toad bust (inline SVG, animated).", "author": "Original, drawn for this project", "license": "Project" },
+    { "id": "logo", "path": "src/components/menu/logo.tsx", "use": "Carved brass title.", "author": "Original", "license": "Project" },
+    { "id": "table-scene", "path": "src/components/menu/table-scene.tsx", "use": "Lamp, table, cards and the regulars behind it.", "author": "Original", "license": "Project" },
+    { "id": "back-bar", "path": "src/components/menu/back-bar.tsx", "use": "Shelves, bottles, sconces and the painting on the wall.", "author": "Original", "license": "Project" }
+  ],
+  "icons": [
+    { "id": "favicon", "path": "src/app/icon.svg", "use": "Browser tab icon: a brass spade.", "author": "Original", "license": "Project" }
+  ],
+  "fonts": [
+    { "id": "rye", "family": "Rye", "use": "Logo and character names.", "loader": "next/font/google (self-hosted at build)", "license": "OFL-1.1" },
+    { "id": "im-fell", "family": "IM Fell English / IM Fell English SC", "use": "Menus, headings, body text and the characters' lines.", "loader": "next/font/google (self-hosted at build)", "license": "OFL-1.1" }
+  ],
+  "audio": [
+    { "id": "ui-hover", "kind": "synth", "path": "src/lib/sfx.ts#hover", "use": "Card-edge tick when a menu option is highlighted.", "license": "Project" },
+    { "id": "ui-select", "kind": "synth", "path": "src/lib/sfx.ts#select", "use": "Knuckle on oak when an option is chosen.", "license": "Project" },
+    { "id": "ui-back", "kind": "synth", "path": "src/lib/sfx.ts#back", "use": "Lower knock for going back.", "license": "Project" },
+    { "id": "ui-confirm", "kind": "synth", "path": "src/lib/sfx.ts#confirm", "use": "Card slap and coin ring when taking a seat.", "license": "Project" },
+    { "id": "ui-open", "kind": "synth", "path": "src/lib/sfx.ts#open", "use": "Soft thud when a panel opens.", "license": "Project" },
+    { "id": "ambience", "kind": "synth", "path": "src/lib/sfx.ts#startAmbience", "use": "Room tone, lamp hum and stove crackle.", "license": "Project" }
+  ]
+}
