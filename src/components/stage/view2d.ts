@@ -158,3 +158,88 @@ export function roundedRect(half: number, depth: number, r: number, y: number, s
 /** An SVG path through screen points. */
 export const pathOf = (v: View, pts: Vec[]) =>
   pts.map((p, i) => `${i ? "L" : "M"}${v.px(p)[0].toFixed(1)},${v.px(p)[1].toFixed(1)}`).join("") + "Z";
+
+/**
+ * The 3D table's own outline: a rounded rectangle whose corners are quadratic curves pulled toward the
+ * corner point (as THREE's quadraticCurveTo draws them), so the long edges stay straight and the corners
+ * read squarer than circular arcs.
+ */
+export function tableRect(half: number, depth: number, r: number, y: number, steps = 10): Vec[] {
+  const s = TABLE_SCALE;
+  const out: Vec[] = [];
+  const q = (a: [number, number], c: [number, number], b: [number, number]) => {
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const u = 1 - t;
+      out.push([(u * u * a[0] + 2 * u * t * c[0] + t * t * b[0]) * s, y, (u * u * a[1] + 2 * u * t * c[1] + t * t * b[1]) * s]);
+    }
+  };
+  const w = half;
+  const h = depth;
+  q([w - r, h], [w, h], [w, h - r]);
+  q([w, -h + r], [w, -h], [w - r, -h]);
+  q([-w + r, -h], [-w, -h], [-w, -h + r]);
+  q([-w, h - r], [-w, h], [-w + r, h]);
+  return out;
+}
+
+/** `n` points spread evenly (by length) round a closed outline: the 3D table's brass studs. */
+export function spaced(pts: Vec[], n: number): Vec[] {
+  const seg: number[] = [];
+  let total = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i];
+    const b = pts[(i + 1) % pts.length];
+    const d = Math.hypot(b[0] - a[0], b[2] - a[2]);
+    seg.push(d);
+    total += d;
+  }
+  const out: Vec[] = [];
+  let i = 0;
+  let acc = 0;
+  for (let k = 0; k < n; k++) {
+    const want = (k / n) * total;
+    while (acc + seg[i] < want) acc += seg[i++];
+    const a = pts[i];
+    const b = pts[(i + 1) % pts.length];
+    const t = seg[i] ? (want - acc) / seg[i] : 0;
+    out.push([a[0] + (b[0] - a[0]) * t, a[1], a[2] + (b[2] - a[2]) * t]);
+  }
+  return out;
+}
+
+/** The sizes the 3D app's pictures were captured at (public/baked), per screen shape. */
+export const PLATE_SIZE = { tall: [430, 932], land: [932, 430], desk: [1600, 900] } as const;
+export type PlateAspect = keyof typeof PLATE_SIZE;
+export const plateAspect = (w: number, h: number): PlateAspect => (w / h < 0.9 ? "tall" : h < 560 ? "land" : "desk");
+
+/** How a captured picture covers the screen: captured size, scale and offset (object-fit: cover). */
+export interface Crop {
+  bw: number;
+  bh: number;
+  s: number;
+  ox: number;
+  oy: number;
+}
+
+/**
+ * The projection of a captured picture as it covers a w × h screen: the camera is the one the picture was
+ * taken with (at its own size), then scaled and centred like object-fit: cover, so whatever is drawn
+ * through this view lands exactly on the picture's table.
+ */
+export function makePlateView(look: LookId, w: number, h: number): View & { crop: Crop } {
+  const [bw, bh] = PLATE_SIZE[plateAspect(w, h)];
+  const base = makeView(look, bw, bh);
+  const s = Math.max(w / bw, h / bh);
+  const ox = (w - bw * s) / 2;
+  const oy = (h - bh * s) / 2;
+  const px = (p: Vec): [number, number] => {
+    const [x, y] = base.px(p);
+    return [x * s + ox, y * s + oy];
+  };
+  const pc = (p: Vec): [number, number] => {
+    const [x, y] = px(p);
+    return [(x / w) * 100, (y / h) * 100];
+  };
+  return { w, h, shot: base.shot, px, pc, crop: { bw, bh, s, ox, oy } };
+}

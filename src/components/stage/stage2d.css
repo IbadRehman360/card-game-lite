@@ -850,3 +850,162 @@ html[data-motion="reduce"] .st-room *::after {
     scale: 2.6;
   }
 }
+
+/* lamp colours sampled from the 3D render: dark olive shade, cream rim, copper fitting */
+.st-shade b {
+  background: linear-gradient(90deg, #5a220a, #b85a24 45%, #6a2a0e);
+}
+.st-shade i {
+  background: linear-gradient(90deg, #121004, #2a260b 40%, #34300f 55%, #171406);
+}
+.st-shade s {
+  height: 8%;
+  min-height: 3px;
+  background: linear-gradient(90deg, #8a7650, #d0b27f 45%, #a08a60);
+  box-shadow: 0 2px 10px rgba(255, 220, 160, 0.25);
+}
+
+/* title/menu: the rendered room picture replaces the drawn wall, lamp and bunting */
+.st-plate {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+.st-room[data-plate="on"] .st-bunting,
+.st-room[data-plate="on"] .st-shade,
+.st-room[data-plate="on"] .st-cone,
+.st-room[data-plate="on"] .st-lamp {
+  display: none;
+}
+
+/* cards on the felt sit under the same warm lamp as the 3D table: creamier faces, ember-warm backs, softer contrast */
+.st-play .st-card,
+.st-play .st-stack,
+.st-play .st-side,
+.st-bluff .st-card,
+.st-bluff .st-stack,
+.st-bluff .st-side,
+.st-dcard {
+  filter: sepia(0.32) saturate(1.35) brightness(0.9) contrast(0.9) drop-shadow(0 3px 3px rgba(0, 0, 0, 0.45));
+}
+.st-play .st-back,
+.st-bluff .st-back,
+.st-dcard .st-back {
+  filter: hue-rotate(12deg) saturate(1.25) brightness(1.18);
+}
+
+/* dust only drifts in the lamp light of the menus, never over the felt in a game; smaller and fainter */
+.st-room[data-look="play"] .st-dust {
+  display: none;
+}
+.st-dust i {
+  width: 1.5px;
+  height: 1.5px;
+  background: rgba(255, 226, 170, 0.45);
+}
+
+/* in a game the camera looks down past the table onto the 3D room's plank floor, warm under the lamp */
+.st-room[data-look="play"] .st-wall {
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 40%, rgba(150, 70, 25, 0.28), transparent 70%),
+    radial-gradient(ellipse 85% 75% at 50% 40%, transparent 35%, rgba(4, 2, 1, 0.85) 100%),
+    linear-gradient(rgba(20, 8, 3, 0.55), rgba(20, 8, 3, 0.55)),
+    url("/assets/textures/floor-planks.webp") center / 260px auto repeat,
+    #1a0d06;
+}
+
+/* a browner, warmer floor */
+.st-room[data-look="play"] .st-wall {
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 40%, rgba(170, 90, 35, 0.32), transparent 70%),
+    radial-gradient(ellipse 90% 80% at 50% 40%, transparent 45%, rgba(10, 4, 2, 0.75) 100%),
+    linear-gradient(rgba(70, 34, 12, 0.45), rgba(70, 34, 12, 0.45)),
+    url("/assets/textures/floor-planks.webp") center / 260px auto repeat,
+    #3a1e0c;
+}
+
+/* darker brown floor */
+.st-room[data-look="play"] .st-wall {
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 40%, rgba(150, 75, 28, 0.22), transparent 70%),
+    radial-gradient(ellipse 90% 80% at 50% 40%, transparent 40%, rgba(8, 3, 1, 0.8) 100%),
+    linear-gradient(rgba(42, 18, 6, 0.62), rgba(42, 18, 6, 0.62)),
+    url("/assets/textures/floor-planks.webp") center / 260px auto repeat,
+    #24120a;
+}
+
+/* picking: the picture already holds the table and the four regulars */
+.st-table[data-hide] {
+  display: none;
+}
+/* swap between the four pictures with a short crossfade */
+.st-plate {
+  animation: st-plate-in 0.35s ease-out;
+}
+@keyframes st-plate-in {
+  from {
+    opacity: 0.4;
+  }
+}
+
+/* a regular other than the bear, across the table: the 3D app's picture of them, breathing gently */
+.st-sprite {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  user-select: none;
+  transform-origin: 50% 100%;
+  animation: st-breathe 3.6s ease-in-out infinite;
+}
+@keyframes st-breathe {
+  50% {
+    transform: scaleY(1.012) translateY(-0.4%);
+  }
+}
+.st-room[data-idle="true"] .st-sprite {
+  animation: none;
+}
+
+/* the live figure's canvas: only the box round the figure, not the whole screen */
+.st-fig-box {
+  position: absolute;
+}
+
+/* the bear's stand-in picture: there from the first frame, then the live figure fades in over it */
+.st-sprite {
+  animation:
+    st-stand-in 0.5s ease-out both,
+    st-breathe 3.6s ease-in-out 0.5s infinite;
+}
+@keyframes st-stand-in {
+  from {
+    opacity: 0;
+    transform: translateY(3%) scale(0.98);
+  }
+}
+.st-sprite[data-out] {
+  animation: st-stand-out 0.6s ease-in 0.15s both;
+}
+@keyframes st-stand-out {
+  to {
+    opacity: 0;
+  }
+}
+.st-fig {
+  transition: opacity 0.6s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .st-sprite,
+  .st-sprite[data-out] {
+    animation-duration: 0.01s;
+  }
+}
+/* resting: no breathing, but the stand-in still fades away once the figure is in */
+.st-room[data-idle="true"] .st-sprite:not([data-out]) {
+  animation: st-stand-in 0.5s ease-out both;
+}

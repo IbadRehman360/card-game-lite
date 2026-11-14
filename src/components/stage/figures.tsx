@@ -2,21 +2,25 @@
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useAnimations, useGLTF } from "@react-three/drei";
-import { type ReactNode, Suspense, memo, useEffect, useMemo, useRef } from "react";
+import {
+  type ReactNode,
+  Suspense,
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import * as THREE from "three";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { CharacterId } from "@/lib/characters";
-import { type LookId, SEAT_RADIUS, shotFor } from "./view2d";
+import { type Crop, type LookId, SEAT_RADIUS, shotFor } from "./view2d";
 
 /**
  * The cast as real 3D figures (KayKit Adventurers by Kay Lousberg, CC0), drawn in a small transparent
  * canvas behind the 2D table's far rail. Loaded after first paint; the 2D room never waits for it.
  */
-const MODEL_FILES: Record<CharacterId, string> = {
-  mungo: "/models/mungo.glb",
-  corvina: "/models/corvina.glb",
+const MODEL_FILES: Partial<Record<CharacterId, string>> = {
   sal: "/models/sal.glb",
-  wart: "/models/wart.glb",
 };
 
 /** Body parts and clothing to keep; everything else in the pack (swords, shields, wands, mugs) is hidden. */
@@ -27,14 +31,21 @@ const STANDING_HEIGHT = 1.75;
 const BUST_BASE = 0.42;
 
 /** A rigged character, scaled to sit at the table, feet on the floor, facing the camera. */
-function CharacterModel({ url, onLoaded }: { url: string; onLoaded?: () => void }) {
+function CharacterModel({
+  url,
+  onLoaded,
+}: {
+  url: string;
+  onLoaded?: () => void;
+}) {
   const { scene, animations } = useGLTF(url);
   const group = useRef<THREE.Group>(null);
   const model = useMemo(() => {
     const m = clone(scene);
     m.traverse((o) => {
       const mesh = (o as THREE.Mesh).isMesh;
-      if (mesh && !KEEP.test(o.name) && !KEEP.test(o.parent?.name ?? "")) o.visible = false;
+      if (mesh && !KEEP.test(o.name) && !KEEP.test(o.parent?.name ?? ""))
+        o.visible = false;
     });
     const box = new THREE.Box3().setFromObject(m);
     const size = box.getSize(new THREE.Vector3());
@@ -134,7 +145,23 @@ function Slump({ on, children }: { on: boolean; children: ReactNode }) {
   );
 }
 
-function Seat({ id, x, z, rot, light, slump = false, onLoaded }: { id: CharacterId; x: number; z: number; rot: number; light: number; slump?: boolean; onLoaded?: () => void }) {
+function Seat({
+  id,
+  x,
+  z,
+  rot,
+  light,
+  slump = false,
+  onLoaded,
+}: {
+  id: CharacterId;
+  x: number;
+  z: number;
+  rot: number;
+  light: number;
+  slump?: boolean;
+  onLoaded?: () => void;
+}) {
   const target = useMemo(() => {
     const o = new THREE.Object3D();
     o.position.set(x, BUST_BASE + 0.6, z);
@@ -148,7 +175,9 @@ function Seat({ id, x, z, rot, light, slump = false, onLoaded }: { id: Character
         <ChairBack />
         <Slump on={slump}>
           <Suspense fallback={null}>
-            <CharacterModel url={MODEL_FILES[id]} onLoaded={onLoaded} />
+            {MODEL_FILES[id] && (
+              <CharacterModel url={MODEL_FILES[id]} onLoaded={onLoaded} />
+            )}
           </Suspense>
         </Slump>
       </group>
@@ -168,20 +197,74 @@ function Seat({ id, x, z, rot, light, slump = false, onLoaded }: { id: Character
 }
 
 /** The 3D app’s camera shot for this screen, picture shift included. */
-function Frame({ look, at }: { look: LookId; at: number }) {
+/** Where the small canvas sits on the screen: its corner, and the whole screen's size. */
+export interface FigBox {
+  l: number;
+  t: number;
+  vw: number;
+  vh: number;
+}
+
+function Frame({
+  look,
+  at,
+  crop,
+  box,
+}: {
+  look: LookId;
+  at: number;
+  crop?: Crop;
+  box?: FigBox;
+}) {
   const size = useThree((s) => s.size);
   const get = useThree((s) => s.get);
   useEffect(() => {
     const cam = get().camera as THREE.PerspectiveCamera;
     const { width, height } = size;
-    const shot = shotFor(look, width / Math.max(height, 1), height < 560, at);
+    // the canvas only covers the figure's box: show that window of the whole screen's view
+    const l = box?.l ?? 0;
+    const t = box?.t ?? 0;
+    const vw = box?.vw ?? width;
+    const vh = box?.vh ?? height;
+    // we keep the aspect ourselves: on a captured picture the camera is the picture's own, cropped like it
+    (cam as THREE.PerspectiveCamera & { manual?: boolean }).manual = true;
+    if (crop) {
+      const { bw, bh, s, ox, oy } = crop;
+      const shot = shotFor(look, bw / bh, bh < 560, at);
+      const fw = bw * s;
+      const fh = bh * s;
+      cam.aspect = bw / bh;
+      cam.fov = shot.fov;
+      cam.position.set(...shot.pos);
+      cam.setViewOffset(
+        fw,
+        fh,
+        -ox - shot.shift[0] * fw + l,
+        shot.shift[1] * fh - oy + t,
+        width,
+        height,
+      );
+      cam.lookAt(...shot.look);
+      cam.updateProjectionMatrix();
+      get().invalidate();
+      return;
+    }
+    const shot = shotFor(look, vw / Math.max(vh, 1), vh < 560, at);
+    cam.aspect = vw / Math.max(vh, 1);
     cam.fov = shot.fov;
     cam.position.set(...shot.pos);
-    cam.setViewOffset(width, height, -shot.shift[0] * width, shot.shift[1] * height, width, height);
+    cam.setViewOffset(
+      vw,
+      vh,
+      -shot.shift[0] * vw + l,
+      shot.shift[1] * vh + t,
+      width,
+      height,
+    );
     cam.lookAt(...shot.look);
     cam.updateProjectionMatrix();
     get().invalidate();
-  }, [get, size, look, at]);
+  }, [get, size, look, at, crop, box]);
   return null;
 }
 
@@ -192,8 +275,23 @@ function LampLight({ lifted }: { lifted: boolean }) {
   return (
     <>
       <primitive object={target} />
-      <spotLight position={[0, y, 0]} target={target} angle={0.66} penumbra={0.75} distance={4.4} intensity={34 * (lifted ? 1.5 : 1)} decay={1.5} color="#ffcf8f" />
-      <pointLight position={[0, y - 0.27, 0]} intensity={2.6} distance={5} decay={2} color="#ffc983" />
+      <spotLight
+        position={[0, y, 0]}
+        target={target}
+        angle={0.66}
+        penumbra={0.75}
+        distance={4.4}
+        intensity={34 * (lifted ? 1.5 : 1)}
+        decay={1.5}
+        color="#ffcf8f"
+      />
+      <pointLight
+        position={[0, y - 0.27, 0]}
+        intensity={2.6}
+        distance={5}
+        decay={2}
+        color="#ffc983"
+      />
     </>
   );
 }
@@ -205,7 +303,9 @@ function Ticker({ fps }: { fps: number }) {
     let id: number | undefined;
     const run = () => {
       window.clearInterval(id);
-      id = document.hidden ? undefined : window.setInterval(() => invalidate(), 1000 / fps);
+      id = document.hidden
+        ? undefined
+        : window.setInterval(() => invalidate(), 1000 / fps);
     };
     run();
     document.addEventListener("visibilitychange", run);
@@ -224,6 +324,8 @@ export default memo(function Figures({
   focus = -1,
   at = 0,
   fps = 30,
+  crop,
+  box,
   onReady,
 }: {
   look: LookId;
@@ -234,15 +336,32 @@ export default memo(function Figures({
   /** Index (in ids) of the lit one; -1 for none. */
   focus?: number;
   fps?: number;
+  /** Standing on a captured picture: frame the figures through that picture's camera and crop. */
+  crop?: Crop;
+  /** The canvas covers only this box of the screen (much less to draw than the whole screen). */
+  box?: FigBox;
   onReady?: () => void;
 }) {
   const light = (i: number) =>
-    look === "select" ? (i === focus ? 16 : 0.6) : i === focus ? 16 : look === "play" ? 4 : 5;
+    look === "select"
+      ? i === focus
+        ? 16
+        : 0.6
+      : i === focus
+        ? 16
+        : look === "play"
+          ? 4
+          : 5;
   return (
     <Canvas
-      dpr={[1, 1.5]}
+      dpr={1}
       frameloop="demand"
-      gl={{ alpha: true, antialias: true, powerPreference: "low-power", stencil: false }}
+      gl={{
+        alpha: true,
+        antialias: true,
+        powerPreference: "low-power",
+        stencil: false,
+      }}
       camera={{ fov: 40, near: 0.1, far: 40, position: [0, 2, 6] }}
       onCreated={({ gl }) => {
         gl.setClearColor(0x000000, 0);
@@ -250,7 +369,7 @@ export default memo(function Figures({
         gl.toneMappingExposure = 1.2;
       }}
     >
-      <Frame look={look} at={at} />
+      <Frame look={look} at={at} crop={crop} box={box} />
       <Ticker fps={fps} />
       <ambientLight intensity={0.1} color="#ffd9aa" />
       <hemisphereLight args={["#4a3420", "#000000", 0.35]} />
