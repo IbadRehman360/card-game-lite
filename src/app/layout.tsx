@@ -12,7 +12,7 @@ const plexMono = IBM_Plex_Mono({ variable: "--font-plex-mono", weight: ["400", "
 
 export const metadata: Metadata = {
   title: APP_NAME,
-  description: "Rung, the Court Piece card game, played at a lamp-lit table in an underground tavern. Four seats, two teams.",
+  description: "Baazi: Court Piece, online. Play the computer, friends online, or friends at the same table.",
   applicationName: APP_NAME,
   appleWebApp: { capable: true, title: APP_NAME, statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },

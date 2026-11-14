@@ -49,9 +49,9 @@ async function build(): Promise<string> {
   const publics = (await walk(path.join(ROOT, "public"), "")).filter((f) => !PUBLIC_SKIP.test(f) && f !== "/sw.js");
   const precache = ["/", "/manifest.webmanifest", ...statics, ...publics];
 
-  const body = `/* Last Haath service worker, build ${JSON.stringify(id)} */
+  const body = `/* Baazi service worker, build ${JSON.stringify(id)} */
 const BUILD = ${JSON.stringify(id)};
-const CACHE = "haath-" + BUILD;
+const CACHE = "baazi-" + BUILD;
 const PRECACHE = ${JSON.stringify(precache)};
 
 self.addEventListener("install", (event) => {
@@ -64,7 +64,7 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
-    for (const key of await caches.keys()) if (key.startsWith("haath-") && key !== CACHE) await caches.delete(key);
+    for (const key of await caches.keys()) if (key.startsWith("baazi-") && key !== CACHE) await caches.delete(key);
     await self.clients.claim();
   })());
 });

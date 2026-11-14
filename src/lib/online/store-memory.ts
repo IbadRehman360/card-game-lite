@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import type { PlayerRow, RoomRow, RoomStore } from "./store";
-import { CHAT_KEEP, SeatTakenError } from "./store";
+import { CHAT_KEEP, SeatTakenError, runSweepHook, setSweepHook } from "./store";
 import type { ChatMessage, RoomEvent } from "./types";
 
 /**
@@ -31,11 +31,7 @@ const STALE_MS = 3 * 60 * 60 * 1000;
 const MAX_IDLE_MS = 24 * 60 * 60 * 1000;
 const clone = <T>(v: T): T => structuredClone(v);
 
-/** Called with a table (and its players) just before a stale one is forgotten, e.g. to cash out chips. */
-let onSweep: ((room: RoomRow, players: PlayerRow[]) => void) | null = null;
-export function setSweepHook(fn: (room: RoomRow, players: PlayerRow[]) => void) {
-  onSweep = fn;
-}
+export { setSweepHook };
 
 function sweepStale() {
   const now = Date.now();
@@ -46,11 +42,7 @@ function sweepStale() {
     const watched = Boolean(db.listeners.get(code)?.size);
     const gone = !occupied.has(code) ? idle > EMPTY_MS : (!watched && idle > STALE_MS) || idle > MAX_IDLE_MS;
     if (gone) {
-      try {
-        onSweep?.(clone(room), [...db.players.values()].filter((p) => p.room_code === code).map(clone));
-      } catch (e) {
-        console.error("[last-haath] sweep hook failed", e);
-      }
+      void runSweepHook(room, [...db.players.values()].filter((p) => p.room_code === code));
       db.rooms.delete(code);
       chat.delete(code);
       for (const [id, p] of db.players) if (p.room_code === code) db.players.delete(id);

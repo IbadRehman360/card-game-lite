@@ -4,7 +4,7 @@ import { RoomError } from "./rooms";
 import { WalletError } from "../wallet/wallets";
 import { ApiError } from "./guard";
 
-export const TOKEN_HEADER = "x-haath-token";
+export const TOKEN_HEADER = "x-baazi-token";
 
 const NO_STORE = { "Cache-Control": "no-store" };
 const fail = (body: Record<string, unknown>, status: number, extra?: Record<string, string>) =>
@@ -27,7 +27,7 @@ export async function handle(fn: () => Promise<unknown>) {
     if (err instanceof RoomError) return fail({ error: err.message }, err.status);
     if (err instanceof WalletError) return fail({ error: err.message, coins: true, short: err.short ?? null }, err.status);
     if (err instanceof GameError) return fail({ error: err.message }, 400);
-    console.error("[last-haath] api error", err);
+    console.error("[baazi] api error", err);
     return fail({ error: "Something went wrong, try again" }, 500);
   }
 }

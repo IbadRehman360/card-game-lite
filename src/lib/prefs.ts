@@ -26,7 +26,7 @@ export const DEFAULT_PREFS: Prefs = {
 
 export const NAME_MAX = 16;
 
-const KEY = "liars-rung:prefs";
+const KEY = "baazi:prefs";
 const listeners = new Set<() => void>();
 let current: Prefs = DEFAULT_PREFS;
 let loaded = false;

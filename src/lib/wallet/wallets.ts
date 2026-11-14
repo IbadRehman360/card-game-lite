@@ -1,4 +1,5 @@
 import "server-only";
+import { supabaseAdmin, supabaseConfigured } from "../online/supabase";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -17,8 +18,8 @@ import {
 } from "./economy";
 
 /**
- * Every phone's coins, kept by the game server (so they can't be changed from the browser) in a JSON
- * file next to the app. A phone holds a secret wallet token; the server only stores a hash of it.
+ * Every phone's coins, kept by the game server (so they can't be changed from the browser): in Supabase
+ * (the `wallets` table) when it is configured, else in a JSON file next to the app. A phone holds a secret wallet token; the server only stores a hash of it.
  */
 
 export class WalletError extends Error {
@@ -69,7 +70,7 @@ function db(): Db {
     if (existsSync(FILE)) data = JSON.parse(readFileSync(FILE, "utf8")) as Db;
     if (!data || typeof data.wallets !== "object") data = { wallets: {} };
   } catch (e) {
-    console.error("[last-haath] couldn't read wallets, starting empty", e);
+    console.error("[baazi] couldn't read wallets, starting empty", e);
     data = { wallets: {} };
   }
   g.__haathWallets = data;
@@ -86,7 +87,7 @@ function persist() {
       writeFileSync(tmp, JSON.stringify(db()));
       renameSync(tmp, FILE);
     } catch (e) {
-      console.error("[last-haath] couldn't save wallets", e);
+      console.error("[baazi] couldn't save wallets", e);
     }
   }, 150);
 }
@@ -128,6 +129,54 @@ function wallet(key: string): Wallet {
   return w;
 }
 
+/** Drops old idempotency keys. */
+function prune(w: Wallet) {
+  const now = Date.now();
+  for (const [k, t] of Object.entries(w.done)) if (now - t > DONE_TTL) delete w.done[k];
+}
+
+const UNAVAILABLE = "Coins are unavailable right now, try again";
+
+/**
+ * Runs `fn` on a wallet and saves what it changed. Without Supabase that is the in-memory copy (saved
+ * to a file); with it, the wallet is one row written with an optimistic version check, so two serverless
+ * instances can't overwrite each other (the change is re-run on a fresh copy instead).
+ */
+async function tx<T>(key: string, fn: (w: Wallet) => T): Promise<T> {
+  if (!supabaseConfigured()) {
+    const w = wallet(key);
+    const out = fn(w);
+    persist();
+    return out;
+  }
+  const sb = supabaseAdmin();
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const { data: row, error } = await sb.from("wallets").select("data, version").eq("key", key).maybeSingle();
+    if (error) throw new WalletError(UNAVAILABLE, 503);
+    const w: Wallet = row ? (row.data as Wallet) : fresh();
+    const version = row ? (row.version as number) : 0;
+    prune(w);
+    const before = row ? JSON.stringify(w) : "";
+    const out = fn(w);
+    if (row && JSON.stringify(w) === before) return out;
+    if (!row) {
+      const { error: e } = await sb.from("wallets").insert({ key, data: w, version: 1 });
+      if (!e) return out;
+      if (e.code !== "23505") throw new WalletError(UNAVAILABLE, 503);
+    } else {
+      const { data: upd, error: e } = await sb
+        .from("wallets")
+        .update({ data: w, version: version + 1, updated_at: new Date().toISOString() })
+        .eq("key", key)
+        .eq("version", version)
+        .select("key");
+      if (e) throw new WalletError(UNAVAILABLE, 503);
+      if (upd && upd.length) return out;
+    }
+  }
+  throw new WalletError("Coins are busy, try again", 503);
+}
+
 export function newWalletToken(): string {
   return randomBytes(24).toString("base64url");
 }
@@ -136,12 +185,12 @@ function view(w: Wallet): WalletView {
   return { coins: w.coins, ledger: w.ledger.slice(0, LEDGER_MAX) };
 }
 
-export function getWallet(key: string): WalletView {
-  return view(wallet(key));
+export async function getWallet(key: string): Promise<WalletView> {
+  return tx(key, view);
 }
 
-export function balance(key: string): number {
-  return wallet(key).coins;
+export async function balance(key: string): Promise<number> {
+  return tx(key, (w) => w.coins);
 }
 
 function record(w: Wallet, amount: number, reason: string) {
@@ -157,15 +206,15 @@ const notEnough = (need: number, have: number) =>
  * Adds (amount > 0) or takes (amount < 0) coins. With an idempotency key, doing it again is a no-op.
  * Returns false when the key was already used.
  */
-export function move(key: string, amount: number, reason: string, once?: string): boolean {
-  const w = wallet(key);
-  if (once && w.done[once]) return false;
-  amount = Math.trunc(amount);
-  if (amount < 0 && w.coins + amount < 0) throw notEnough(-amount, w.coins);
-  if (amount !== 0) record(w, amount, reason);
-  if (once) w.done[once] = Date.now();
-  persist();
-  return true;
+export async function move(key: string, amount: number, reason: string, once?: string): Promise<boolean> {
+  return tx(key, (w) => {
+    if (once && w.done[once]) return false;
+    const n = Math.trunc(amount);
+    if (n < 0 && w.coins + n < 0) throw notEnough(-n, w.coins);
+    if (n !== 0) record(w, n, reason);
+    if (once) w.done[once] = Date.now();
+    return true;
+  });
 }
 
 export interface Charge {
@@ -179,11 +228,12 @@ export interface Charge {
 
 /**
  * Charges several wallets at once: either everyone pays, or nobody does and the error names who is
- * short. Runs without awaiting, so nothing can slip in between the check and the charges.
+ * short. (If a charge fails part-way, the ones already taken are given back.)
  */
-export function chargeAll(charges: Charge[]) {
-  const due = charges.filter((c) => !wallet(c.key).done[c.once]);
-  const short = due.filter((c) => wallet(c.key).coins < c.amount);
+export async function chargeAll(charges: Charge[]) {
+  const states = await Promise.all(charges.map((c) => tx(c.key, (w) => ({ done: Boolean(w.done[c.once]), coins: w.coins }))));
+  const due = charges.filter((_, i) => !states[i].done);
+  const short = due.filter((c) => states[charges.indexOf(c)].coins < c.amount);
   if (short.length) {
     const names = short.map((c) => c.name).join(", ");
     throw new WalletError(
@@ -191,15 +241,29 @@ export function chargeAll(charges: Charge[]) {
       402,
     );
   }
-  for (const c of due) move(c.key, -c.amount, c.reason, c.once);
+  const taken: Charge[] = [];
+  try {
+    for (const c of due) {
+      await move(c.key, -c.amount, c.reason, c.once);
+      taken.push(c);
+    }
+  } catch (e) {
+    for (const c of taken) {
+      await tx(c.key, (w) => {
+        record(w, c.amount, "Refund: the game didn't start");
+        delete w.done[c.once];
+      }).catch(() => {});
+    }
+    throw e;
+  }
 }
 
 /** Demo shop: the pack's coins arrive straight away, nothing is charged. */
-export function buyPack(key: string, packId: unknown, purchaseId: unknown): WalletView {
+export async function buyPack(key: string, packId: unknown, purchaseId: unknown): Promise<WalletView> {
   const pack = packById(packId);
   if (!pack) throw new WalletError("That pack isn't in the shop");
   const once = typeof purchaseId === "string" && /^[A-Za-z0-9-]{8,64}$/.test(purchaseId) ? `buy:${purchaseId}` : undefined;
-  move(key, pack.coins + pack.bonus, `${pack.name} pack`, once);
+  await move(key, pack.coins + pack.bonus, `${pack.name} pack`, once);
   return getWallet(key);
 }
 
@@ -214,27 +278,26 @@ function closeStale(w: Wallet, id: string) {
     const coins = payoutFor("patti", { chips: s.lastChips, startChips: s.startChips, buyIns: s.buyIns });
     if (coins > 0) record(w, coins, "3 Patti cash out");
   }
-  persist();
 }
 
 /** Pays to start a game against the computer. Any earlier one this phone left open is settled first. */
-export function openSolo(key: string, game: unknown, startChips?: unknown): { session: string; wallet: WalletView } {
+export async function openSolo(key: string, game: unknown, startChips?: unknown): Promise<{ session: string; wallet: WalletView }> {
   if (!isGameKind(game)) throw new WalletError("Unknown game");
-  const w = wallet(key);
-  for (const id of Object.keys(w.solo)) closeStale(w, id);
-  const fee = GAMES[game].fee;
-  if (w.coins < fee) throw notEnough(fee, w.coins);
-  void startChips; // the coin table always starts you with your buy-in, whatever the phone says
-  record(w, -fee, game === "patti" ? "3 Patti buy-in" : `${GAMES[game].name} game`);
-  const session = randomUUID();
-  w.solo[session] = {
-    game,
-    openedAt: Date.now(),
-    buyIns: 1,
-    ...(game === "patti" ? { startChips: PATTI_BUYIN, lastChips: PATTI_BUYIN } : {}),
-  };
-  persist();
-  return { session, wallet: view(w) };
+  return tx(key, (w) => {
+    for (const id of Object.keys(w.solo)) closeStale(w, id);
+    const fee = GAMES[game].fee;
+    if (w.coins < fee) throw notEnough(fee, w.coins);
+    void startChips; // the coin table always starts you with your buy-in, whatever the phone says
+    record(w, -fee, game === "patti" ? "3 Patti buy-in" : `${GAMES[game].name} game`);
+    const session = randomUUID();
+    w.solo[session] = {
+      game,
+      openedAt: Date.now(),
+      buyIns: 1,
+      ...(game === "patti" ? { startChips: PATTI_BUYIN, lastChips: PATTI_BUYIN } : {}),
+    };
+    return { session, wallet: view(w) };
+  });
 }
 
 function session(w: Wallet, id: unknown): SoloSession {
@@ -244,28 +307,26 @@ function session(w: Wallet, id: unknown): SoloSession {
 }
 
 /** 3 Patti against the computer: out of chips, buy back in. */
-export function soloRebuy(key: string, id: unknown): WalletView {
-  const w = wallet(key);
-  const s = session(w, id);
-  if (s.game !== "patti") throw new WalletError("Only 3 Patti has buy-ins");
-  if (w.coins < PATTI_FEE) throw notEnough(PATTI_FEE, w.coins);
-  record(w, -PATTI_FEE, "3 Patti buy-in");
-  s.buyIns += 1;
-  s.lastChips = s.startChips;
-  persist();
-  return view(w);
+export async function soloRebuy(key: string, id: unknown): Promise<WalletView> {
+  return tx(key, (w) => {
+    const s = session(w, id);
+    if (s.game !== "patti") throw new WalletError("Only 3 Patti has buy-ins");
+    if (w.coins < PATTI_FEE) throw notEnough(PATTI_FEE, w.coins);
+    record(w, -PATTI_FEE, "3 Patti buy-in");
+    s.buyIns += 1;
+    s.lastChips = s.startChips;
+    return view(w);
+  });
 }
 
 /** 3 Patti against the computer: your chips after a deal (cashed out if the app is closed). */
-export function soloReport(key: string, id: unknown, chips: unknown): void {
-  const w = wallet(key);
-  const s = typeof id === "string" ? w.solo[id] : undefined;
-  if (!s || s.game !== "patti") return;
-  const c = Math.floor(Number(chips));
-  if (Number.isFinite(c) && c >= 0) {
-    s.lastChips = c;
-    persist();
-  }
+export async function soloReport(key: string, id: unknown, chips: unknown): Promise<void> {
+  await tx(key, (w) => {
+    const s = typeof id === "string" ? w.solo[id] : undefined;
+    if (!s || s.game !== "patti") return;
+    const c = Math.floor(Number(chips));
+    if (Number.isFinite(c) && c >= 0) s.lastChips = c;
+  });
 }
 
 /** Only the fields that game's payout reads, with the types it expects (anything else from the phone is dropped). */
@@ -287,19 +348,19 @@ const PAID_REASON: Record<GameKind, string> = {
  * Ends a game against the computer and pays what it earned (see payoutFor). Settling twice is refused,
  * and a win claimed too soon after paying pays nothing (3 Patti chips always cash out).
  */
-export function soloSettle(key: string, id: unknown, outcome: Record<string, unknown>): { paid: number; wallet: WalletView } {
-  const w = wallet(key);
-  const s = session(w, id);
-  delete w.solo[id as string];
-  const o = cleanOutcome(outcome ?? {});
-  let paid = 0;
-  if (s.game === "patti") {
-    const chips = o.chips ?? s.lastChips;
-    if (s.startChips && chips !== undefined) paid = payoutFor("patti", { chips, startChips: s.startChips, buyIns: s.buyIns });
-  } else if (Date.now() - s.openedAt >= GAMES[s.game].minMs) {
-    paid = payoutFor(s.game, o);
-  }
-  if (paid > 0) record(w, paid, PAID_REASON[s.game]);
-  persist();
-  return { paid, wallet: view(w) };
+export async function soloSettle(key: string, id: unknown, outcome: Record<string, unknown>): Promise<{ paid: number; wallet: WalletView }> {
+  return tx(key, (w) => {
+    const s = session(w, id);
+    delete w.solo[id as string];
+    const o = cleanOutcome(outcome ?? {});
+    let paid = 0;
+    if (s.game === "patti") {
+      const chips = o.chips ?? s.lastChips;
+      if (s.startChips && chips !== undefined) paid = payoutFor("patti", { chips, startChips: s.startChips, buyIns: s.buyIns });
+    } else if (Date.now() - s.openedAt >= GAMES[s.game].minMs) {
+      paid = payoutFor(s.game, o);
+    }
+    if (paid > 0) record(w, paid, PAID_REASON[s.game]);
+    return { paid, wallet: view(w) };
+  });
 }

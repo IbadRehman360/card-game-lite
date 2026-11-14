@@ -6,7 +6,7 @@ import { Crashed } from "@/components/crashed";
 /** A crash in the root layout itself: it replaces the whole document, so it brings its own html and body. */
 export default function GlobalError({ error, retry }: { error: unknown; retry: () => void }) {
   useEffect(() => {
-    console.error("[last-haath] app crashed", error);
+    console.error("[baazi] app crashed", error);
   }, [error]);
   return (
     <html lang="en">

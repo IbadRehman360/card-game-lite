@@ -1,5 +1,6 @@
 import "server-only";
 import type { GameOptions, Seat } from "../game/engine";
+import { supabaseConfigured } from "./supabase";
 import type { ChatMessage, RoomEvent, StoredState } from "./types";
 
 export interface RoomRow {
@@ -28,8 +29,9 @@ export interface PlayerRow {
 export class SeatTakenError extends Error {}
 
 /**
- * Where online tables live. For now that is this server's memory, which is all a table on one local
- * network needs (everyone's phone talks to the computer running the game).
+ * Where online tables live: Supabase Postgres when it is configured (works on serverless hosts like
+ * Vercel), else this server's memory, which is all a table on one local network needs (everyone's
+ * phone talks to the computer running the game).
  */
 export interface RoomStore {
   getRoom(code: string): Promise<RoomRow | null>;
@@ -58,17 +60,31 @@ export interface RoomStore {
 /** How many chat messages a table keeps. */
 export const CHAT_KEEP = 60;
 
+/** Called with a table (and its players) just before a stale one is forgotten, e.g. to cash out chips. */
+type SweepHook = (room: RoomRow, players: PlayerRow[]) => void | Promise<void>;
+let onSweep: SweepHook | null = null;
+export function setSweepHook(fn: SweepHook) {
+  onSweep = fn;
+}
+export async function runSweepHook(room: RoomRow, players: PlayerRow[]) {
+  try {
+    await onSweep?.(structuredClone(room), structuredClone(players));
+  } catch (e) {
+    console.error("[baazi] sweep hook failed", e);
+  }
+}
+
 let store: RoomStore | null = null;
 
 export async function getStore(): Promise<RoomStore> {
-  store ??= (await import("./store-memory")).memoryStore;
+  store ??= supabaseConfigured() ? (await import("./store-supabase")).supabaseStore : (await import("./store-memory")).memoryStore;
   return store;
 }
 
 /**
- * The memory store only works on one long-running server. On serverless hosts like Vercel each request
- * can land on a different instance, so tables with friends aren't offered there yet.
+ * Tables need somewhere to live that every request can reach: Supabase, or one long-running server's
+ * memory. Serverless hosts like Vercel have neither unless the Supabase keys are set.
  */
 export function tablesAvailable() {
-  return !process.env.VERCEL;
+  return supabaseConfigured() || !process.env.VERCEL;
 }

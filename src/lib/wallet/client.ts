@@ -8,7 +8,7 @@ import { type GameKind, type LedgerEntry, type Outcome, WALLET_HEADER, type Wall
  * every balance comes from the server, and every response updates it.
  */
 
-const TOKEN_KEY = "last-haath:wallet";
+const TOKEN_KEY = "baazi:wallet";
 
 export interface WalletState {
   coins: number | null;

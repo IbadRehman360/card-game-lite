@@ -93,7 +93,7 @@ export interface GPattaGame {
 }
 
 const ME = 0;
-const AUTO_KEY = "last-haath:gpatta:auto";
+const AUTO_KEY = "baazi:gpatta:auto";
 
 export function useGPatta(paused: boolean): GPattaGame {
   const [state, setState] = useState<GPattaState | null>(null);

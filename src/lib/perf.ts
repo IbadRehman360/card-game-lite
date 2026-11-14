@@ -14,8 +14,8 @@ import { useSyncExternalStore } from "react";
 export type PerfTier = "low" | "mid" | "high";
 export type Quality = "auto" | "low" | "high";
 
-const KEY = "last-haath:quality";
-const LEARNED = "last-haath:quality-learned";
+const KEY = "baazi:quality";
+const LEARNED = "baazi:quality-learned";
 
 const listeners = new Set<() => void>();
 let quality: Quality = "auto";

@@ -88,7 +88,7 @@ function readQr(text: string, ecl: "L" | "M") {
 for (const [text, ecl] of [
   ["HI", "M"],
   [code, "M"],
-  [`https://last-haath.example/#nb=${code}`, "M"],
+  [`https://baazi.example/#nb=${code}`, "M"],
   ["x".repeat(300), "L"],
   ["Ünïcødé ♠♥♦♣ " + "y".repeat(500), "M"],
 ] as const) {

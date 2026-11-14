@@ -1,4 +1,4 @@
--- Online tables for Liar's Rung (same model as Rung).
+-- Online tables for Baazi (same model as Rung).
 --
 -- Both tables have RLS enabled with NO policies: the browser (anon key) can't read or write them
 -- at all. Every read/write goes through the Next.js API routes using the service-role key, which

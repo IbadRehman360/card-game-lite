@@ -16,7 +16,7 @@ import { shuffle } from "../game/cards";
 import { AWAY_SECONDS, PACE, TURN_SECONDS } from "../game/pace";
 import { CHARACTERS, isCharacterId } from "../characters";
 import { seatView } from "../game/view";
-import { type PlayerRow, type RoomRow, type RoomStore, SeatTakenError, getStore, tablesAvailable } from "./store";
+import { type PlayerRow, type RoomRow, type RoomStore, SeatTakenError, getStore, setSweepHook, tablesAvailable } from "./store";
 import type { ChatMessage, JoinResponse, PattiView, RoomView, SeatEntry, StoredState } from "./types";
 import {
   PATTI_TURN_SECONDS,
@@ -34,7 +34,6 @@ import { TEMPERS, chooseAction, thinkMs } from "../patti/bot";
 import { pattiForSeat } from "../patti/view";
 import { PATTI_FEE, RUNG_FEE, RUNG_WIN, feeFor, pattiCashOut } from "../wallet/economy";
 import { WalletError, balance, chargeAll, move as moveCoins, walletKey } from "../wallet/wallets";
-import { setSweepHook } from "./store-memory";
 
 /** A character for someone who didn't pick one, chosen from their name so it stays the same. */
 function avatarFor(name: string) {
@@ -150,9 +149,9 @@ async function touch(store: RoomStore, code: string) {
 // ───────────── coins ─────────────
 
 /** Before sitting down: does this wallet have enough for the table's game? (The real charge is at the start.) */
-function mustAfford(key: string, options: GameOptions) {
+async function mustAfford(key: string, options: GameOptions) {
   const fee = feeFor(options.game);
-  const have = balance(key);
+  const have = await balance(key);
   if (have < fee) throw new WalletError(`You need ${fee} coins to play (you have ${have})`, 402, fee - have);
 }
 
@@ -171,25 +170,25 @@ async function payRungSeries(store: RoomStore, code: string, before: GameState, 
   const players = await store.listPlayers(code);
   for (const w of walletsBySeat(seats, players)) {
     if (w.seat % 2 !== game.seriesWinner) continue;
-    moveCoins(w.key, RUNG_WIN, "Rung match won", `${gameId}:s${game.seriesNo ?? 1}:win:${w.key}`);
+    await moveCoins(w.key, RUNG_WIN, "Rung match won", `${gameId}:s${game.seriesNo ?? 1}:win:${w.key}`);
   }
 }
 
 /** 3 Patti: a player's chips turned back into coins as they leave the table. */
-function cashOutPatti(state: StoredState, seat: SeatEntry, key: string | undefined) {
+async function cashOutPatti(state: StoredState, seat: SeatEntry, key: string | undefined) {
   if (!state.patti || !key || !state.gameId) return;
   const chips = state.patti.players[seat.seat].chips;
   // real players at a real table: what you have in front of you goes back to the wallet as it is
   const coins = pattiCashOut(chips, state.patti.rules.startChips);
-  if (coins > 0) moveCoins(key, coins, "3 Patti cash out", `${state.gameId}:out:${seat.playerId}`);
+  if (coins > 0) await moveCoins(key, coins, "3 Patti cash out", `${state.gameId}:out:${seat.playerId}`);
 }
 
 // A table forgotten after a day of silence still pays out the 3 Patti chips of anyone left at it.
-setSweepHook((room, players) => {
+setSweepHook(async (room, players) => {
   if (room.status !== "playing" || !room.state?.patti) return;
   for (const s of room.state.seats) {
     if (s.isBot || !s.playerId) continue;
-    cashOutPatti(room.state, s, players.find((p) => p.id === s.playerId)?.wallet);
+    await cashOutPatti(room.state, s, players.find((p) => p.id === s.playerId)?.wallet);
   }
 });
 
@@ -202,7 +201,7 @@ export async function createRoom(name: unknown, options: unknown, avatar?: unkno
   const store = await getStore();
   const playerName = cleanName(name);
   const key = walletKey(wallet);
-  mustAfford(key, cleanOptions(options));
+  await mustAfford(key, cleanOptions(options));
   // 900 codes: the store refuses one that is in use and we draw another.
   for (let attempt = 0; attempt < 200; attempt++) {
     const code = newCode();
@@ -238,7 +237,7 @@ export async function joinRoom(
     seat = room.state.seats.find((s) => s.isBot)?.seat ?? null;
   }
   // Sitting at a table (now or when the game starts) needs the coins for it; watching is free.
-  if (seat !== null) mustAfford(key, room.options);
+  if (seat !== null) await mustAfford(key, room.options);
 
   const token = randomBytes(24).toString("base64url");
   let player: PlayerRow;
@@ -275,14 +274,14 @@ export async function joinRoom(
     const fee = feeFor(room.options.game);
     let paid = false;
     try {
-      chargeAll([{ key, amount: fee, reason: state.patti ? "3 Patti buy-in" : "Rung match", once, name: playerName }]);
+      await chargeAll([{ key, amount: fee, reason: state.patti ? "3 Patti buy-in" : "Rung match", once, name: playerName }]);
       paid = true;
       const deadline = patti ? pattiDeadline(patti, seats) : state.deadline;
       await saveRoom(store, room, { state: { ...state, ...(patti ? { patti } : {}), seats, deadline } });
     } catch (e) {
       await store.deletePlayer(code, player.id);
       // paid but someone else took the seat first: give the coins back
-      if (paid) moveCoins(key, fee, "Refund: that seat was just taken", `${once}:refund`);
+      if (paid) await moveCoins(key, fee, "Refund: that seat was just taken", `${once}:refund`);
       if (e instanceof RoomError && e.status === 409) throw new RoomError("Someone just took that seat — try again", 409);
       throw e;
     }
@@ -476,7 +475,7 @@ export async function startGame(rawCode: string, token: string) {
     once: isPatti ? `${gameId}:in:${w.playerId}` : `${gameId}:s1:fee:${w.key}`,
     name: w.name,
   }));
-  chargeAll(charges);
+  await chargeAll(charges);
   try {
     if (isPatti) {
       const table = newTable(rulesFor(TABLES[0].boot), undefined, randomInt(4) as Seat);
@@ -488,7 +487,7 @@ export async function startGame(rawCode: string, token: string) {
     await saveRoom(store, room, { status: "playing", state: { ...nextState(null, game, seats), gameId } });
   } catch (e) {
     // the game didn't start after all: give the coins back
-    for (const c of charges) moveCoins(c.key, c.amount, "Refund: the game didn't start", `${c.once}:refund`);
+    for (const c of charges) await moveCoins(c.key, c.amount, "Refund: the game didn't start", `${c.once}:refund`);
     throw e;
   }
 }
@@ -600,7 +599,7 @@ async function pattiNextDeal(store: RoomStore, room: RoomRow, state: StoredState
     const key = entry.isBot ? undefined : players.find((p) => p.id === entry.playerId)?.wallet;
     if (key) {
       try {
-        moveCoins(key, -PATTI_FEE, "3 Patti buy-in", `${state.gameId}:rebuy:${entry.playerId}:${c.dealNo}`);
+        await moveCoins(key, -PATTI_FEE, "3 Patti buy-in", `${state.gameId}:rebuy:${entry.playerId}:${c.dealNo}`);
         seats = seats.map((x) => (x.seat === s ? { ...x, buyIns: (x.buyIns ?? 1) + 1 } : x));
       } catch (e) {
         if (!(e instanceof WalletError)) throw e;
@@ -678,7 +677,7 @@ async function nextDealOnce(rawCode: string, token: string) {
     const series = (state.game.seriesNo ?? 1) + 1;
     for (const w of walletsBySeat(seats, await store.listPlayers(room.code))) {
       try {
-        moveCoins(w.key, -RUNG_FEE, "Rung match", `${state.gameId}:s${series}:fee:${w.key}`);
+        await moveCoins(w.key, -RUNG_FEE, "Rung match", `${state.gameId}:s${series}:fee:${w.key}`);
       } catch (e) {
         if (!(e instanceof WalletError)) throw e;
         seats = seats.map((x) => (x.seat === w.seat ? { ...x, isBot: true, playerId: null, awaySince: null, name: `${x.name} (bot)` } : x));
@@ -745,7 +744,7 @@ async function releaseSeat(store: RoomStore, room: RoomRow, me: PlayerRow) {
   // seat starts with a fresh stack. Leaving a Rung match forfeits it.
   let patti = state.patti;
   if (patti) {
-    cashOutPatti(state, mine, me.wallet);
+    await cashOutPatti(state, mine, me.wallet);
     patti = structuredClone(patti);
     patti.players[mine.seat].chips = patti.rules.startChips;
   }

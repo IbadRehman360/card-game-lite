@@ -1,4 +1,4 @@
-# blocker.md — Liar's Rung
+# blocker.md — Baazi
 
 Technical hurdles, constraints and their workarounds.
 Status: `OPEN` = needs a decision or work, `MITIGATED` = workaround chosen, `INFO` = constraint to remember.

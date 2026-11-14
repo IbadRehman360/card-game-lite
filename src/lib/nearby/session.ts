@@ -406,7 +406,7 @@ export class GuestSession extends Base implements NearbyClient {
 
 /** This phone's id at nearby tables, kept so a dropped connection gets the same seat back. */
 export function guestId(): string {
-  const KEY = "last-haath:nearby-id";
+  const KEY = "baazi:nearby-id";
   try {
     const have = localStorage.getItem(KEY);
     if (have) return have;

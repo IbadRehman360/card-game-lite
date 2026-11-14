@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: APP_NAME,
     short_name: APP_NAME,
-    description: "Rung, 3 Patti and more card games. Play the computer, friends online, or friends at the same table with no internet.",
+    description: "Baazi: Court Piece (Rung), 3 Patti and more card games. Play the computer, friends online, or friends at the same table with no internet.",
     start_url: "/",
     scope: "/",
     display: "standalone",

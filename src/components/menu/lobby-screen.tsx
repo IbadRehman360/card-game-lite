@@ -57,7 +57,7 @@ export function LobbyScreen({
   };
   const share = async () => {
     try {
-      await navigator.share({ title: "Last Haath", text: `Join my table: ${room.code}`, url: inviteUrl });
+      await navigator.share({ title: "Baazi", text: `Join my table: ${room.code}`, url: inviteUrl });
     } catch {
       // dismissed
     }

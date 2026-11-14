@@ -14,8 +14,8 @@ import { walletToken } from "@/lib/wallet/client";
 export type LiveChatMessage = ChatMessage & { live?: boolean };
 import { type SoloGame, useTable } from "./use-solo-game";
 
-const TOKEN_HEADER = "x-haath-token";
-const tokenKey = (code: string) => `last-haath:token:${code}`;
+const TOKEN_HEADER = "x-baazi-token";
+const tokenKey = (code: string) => `baazi:token:${code}`;
 
 export function readToken(code: string) {
   try {

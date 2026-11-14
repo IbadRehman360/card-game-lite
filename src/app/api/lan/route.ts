@@ -3,7 +3,9 @@ import { type NextRequest, connection } from "next/server";
 
 /** The addresses other devices on the same Wi-Fi can use to reach this server. */
 export async function GET(req: NextRequest) {
-  await connection(); // per request: addresses and port belong to the running server, not the build machine
+  await connection();
+  // Only meaningful on your own computer; a hosted server's addresses are no use to friends.
+  if (process.env.VERCEL) return Response.json({ urls: [] }); // per request: addresses and port belong to the running server, not the build machine
   const port = req.nextUrl.port || (req.nextUrl.protocol === "https:" ? "443" : "80");
   const addresses: string[] = [];
   for (const [name, list] of Object.entries(networkInterfaces())) {

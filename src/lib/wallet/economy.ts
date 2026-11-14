@@ -143,4 +143,4 @@ export interface WalletView {
   ledger: LedgerEntry[];
 }
 
-export const WALLET_HEADER = "x-haath-wallet";
+export const WALLET_HEADER = "x-baazi-wallet";
