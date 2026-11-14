@@ -1112,3 +1112,33 @@ html[data-motion="reduce"] .bluff-shot-wait {
   bottom: auto;
   top: calc(100% + 4px);
 }
+
+/* ── desktop and tablet screens: the round card keeps to the table's column (menu.css sets --col and
+   --gut), and LIAR!/PLAY stand just right of your hand instead of out in the screen's corner ── */
+@media (min-aspect-ratio: 9/10) and (min-height: 561px) {
+  .game.bluff .hud-top.bluff-hud {
+    left: calc(env(safe-area-inset-left) + var(--gut, 0px) + 16px);
+  }
+  .bluff-me {
+    --cw: min(clamp(84px, 8.4vw, 140px), 15dvh);
+    --step: min(
+      calc(var(--cw) * 0.82),
+      calc((var(--col, 100vw) - 40px - var(--cw)) / max(calc(var(--n) - 1), 1))
+    );
+  }
+  .bluff-me .bluff-hand {
+    --cw: inherit;
+    --step: inherit;
+  }
+  .bluff-actions {
+    --size: clamp(76px, 12dvh, 108px);
+    right: auto;
+    left: min(
+      calc(50% + ((var(--n) - 1) * var(--step) + var(--cw)) / 2 + 28px),
+      calc(100% - var(--gut, 0px) - var(--size) - 16px)
+    );
+  }
+  .bluff-actions .bluff-round {
+    --size: inherit;
+  }
+}

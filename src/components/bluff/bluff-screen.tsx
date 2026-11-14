@@ -283,7 +283,7 @@ export function BluffScreen({
       )}
 
       {/* ── you ── */}
-      <section className="my-side bluff-me" aria-label="Your cards">
+      <section className="my-side bluff-me" aria-label="Your cards" style={{ "--n": state.hands[0].length } as CSSProperties}>
         <div className="my-row">
           <div className="bluff-wallet" data-dead={!me.alive}>
             <Cylinder shots={me.shots} dead={!me.alive} />

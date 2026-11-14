@@ -1909,3 +1909,18 @@ html[data-motion="reduce"] .win-spark { display: none; }
 :where(.game) :where(button:not(:disabled)):active {
   scale: 0.96;
 }
+
+/* ── desktop and tablet screens: the hand is sized to the screen's height and shows whole, and the score
+   bubble keeps to the table's column (menu.css sets --col and --gut) instead of the screen's edge ── */
+@media (min-aspect-ratio: 9/10) and (min-height: 561px) {
+  .game {
+    --cw: clamp(84px, 12.5vh, 140px);
+  }
+  /* high enough that the outer cards of a full, curved hand still clear the bottom edge */
+  .my-side {
+    bottom: calc(env(safe-area-inset-bottom) + 48px);
+  }
+  .score-dock-them {
+    right: calc(env(safe-area-inset-right) + var(--gut, 0px) + 12px);
+  }
+}

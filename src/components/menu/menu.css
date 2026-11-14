@@ -3796,3 +3796,26 @@ html[data-motion="reduce"] .gc {
 .lobby-free[data-seats="2"] .lobby-seat {
   height: 142px;
 }
+
+/* ─── a game on a desktop or tablet screen ───
+   The table is framed in the middle of the screen (view2d's wide shot), with floor either side. The game's
+   own controls keep to a column the width of the table and its side players (--col), instead of running
+   out to the screen's corners; --gut is the floor either side of it. Upright phones and phones held
+   sideways keep their own layout. */
+@media (min-aspect-ratio: 9/10) and (min-height: 561px) {
+  .room[data-scene="play"] {
+    --col: min(100vw, max(720px, 118vh));
+    --gut: max(0px, calc((100vw - var(--col)) / 2));
+  }
+  .room[data-scene="play"] .corner-mute {
+    right: calc(env(safe-area-inset-right) + var(--gut) + 16px);
+  }
+  .room[data-scene="play"] .corner-pause {
+    right: calc(env(safe-area-inset-right) + var(--gut) + 80px);
+  }
+}
+@media (min-aspect-ratio: 9/10) and (min-height: 561px) {
+  .room[data-scene="play"] .corner-back {
+    left: calc(env(safe-area-inset-left) + var(--gut) + 16px);
+  }
+}

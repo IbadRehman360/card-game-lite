@@ -8,7 +8,7 @@ import type { TableSnapshot } from "@/lib/game/view";
 import { CardFace } from "@/components/game/playing-card";
 import { seatTags } from "./anchors";
 import { preloadCourtArt } from "./card-texture";
-import { PLAY_ANGLE, TABLE_TOP, type Vec, type View, seatDir } from "./view2d";
+import { PLAY_ANGLE, TABLE_SCALE, TABLE_TOP, TOP_HALF, type Vec, type View, seatDir } from "./view2d";
 
 /**
  * The flat (2D) table. Everything on the felt is placed in percent of the stage, projected through the
@@ -211,6 +211,9 @@ export function TagProjector() {
       const top = (document.querySelector(".hud-top")?.getBoundingClientRect().bottom ?? 60) + 8;
       const bottom = (document.querySelector(".my-side")?.getBoundingClientRect().top ?? height) - 8;
       const v = currentView();
+      // anything wider than an upright phone shows the whole table with floor either side of it: the side
+      // players sit just off their own rail rather than out on the screen's edge
+      const wide = width / Math.max(1, height) > 0.9;
       for (const s of [1, 2, 3]) {
         const el = seatTags[s];
         if (!el) continue;
@@ -218,9 +221,13 @@ export function TagProjector() {
         // their own edge, halfway down the table
         const d = seatDir(s);
         const side = s % 2 === 1;
-        const p = v ? v.px([d[0] * (side ? 3 : 1.6), TABLE_TOP + 0.12, d[2] * 1.6]) : [width / 2, height * 0.2];
         const w = el.offsetWidth / 2 + (side ? 0 : 8);
         const h = el.offsetHeight / 2 + 8;
+        let p = v ? v.px([d[0] * (side ? 3 : 1.6), TABLE_TOP + 0.12, d[2] * 1.6]) : [width / 2, height * 0.2];
+        if (v && side && wide) {
+          const rail = v.px([d[0] * (TOP_HALF + 0.1) * TABLE_SCALE, TABLE_TOP, 0]);
+          p = [rail[0] + d[0] * (w + 14), rail[1]];
+        }
         const x = Math.min(width - w, Math.max(w, p[0]));
         const want = side ? (top + bottom) / 2 : p[1];
         const y = Math.min(bottom - h, Math.max(top + h, want));

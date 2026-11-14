@@ -58,6 +58,60 @@ function selectShot(i: number, aspect: number, short: boolean): Shot {
   return { pos: along(at, dir, d), look: at, fov, shift: tall ? [0, 0.13] : [0, short ? 0.04 : 0.1] };
 }
 
+/**
+ * A game on a screen wider than a phone held upright (desktop, tablet, phone on its side): the camera
+ * is fitted so the whole far side shows (the player across, head and all) down to the near rail, and the
+ * table never spreads past the middle of a wide screen. An upright tablet gets it too (wider table);
+ * the upright phone's own shot is left as it was.
+ */
+function wideTableShot(aspect: number, short: boolean): Shot {
+  const fov = short ? 44 : 40;
+  const t = Math.tan((fov * Math.PI) / 360);
+  const dir = norm([0, short ? 1.05 : 1.2, 1]);
+  const at: Vec = [0, TABLE_TOP, 0.15];
+  const head: Vec = [0, 2.02, -SEAT_RADIUS];
+  const rimX = (TOP_HALF + 0.08) * TABLE_SCALE;
+  const rimZ = (TOP_DEPTH + 0.08) * TABLE_SCALE;
+  const near: Vec = [0, TABLE_TOP, rimZ];
+  const corners: Vec[] = [
+    [rimX, TABLE_TOP, rimZ],
+    [rimX, TABLE_TOP, -rimZ],
+  ];
+  // where the head and the near rail land (share of the height; past 1 is under the hand), and how
+  // much of the width the table may take at its widest
+  const top = short ? 0.02 : 0.075;
+  // an upright tablet keeps the phone's layout: the table runs the full width, under the hand
+  const upright = aspect < 0.9;
+  const bottom = short ? 1.2 : upright ? 1.12 : 0.99;
+  const maxW = short ? 0.6 : upright ? 0.94 : 0.64;
+  const ndc = (d: number) => {
+    const pos = along(at, dir, d);
+    const f = norm(sub(at, pos));
+    const r = norm(cross(f, [0, 1, 0]));
+    const u = cross(r, f);
+    return (p: Vec): [number, number] => {
+      const q = sub(p, pos);
+      const z = Math.max(dot(q, f), 0.01);
+      return [dot(q, r) / (z * t * aspect), dot(q, u) / (z * t)];
+    };
+  };
+  const fits = (d: number) => {
+    const p = ndc(d);
+    const span = (p(head)[1] - p(near)[1]) / 2;
+    const wide = Math.max(...corners.map((c) => Math.abs(p(c)[0])));
+    return span <= bottom - top && wide <= maxW;
+  };
+  let lo = 1;
+  let hi = 40;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (fits(mid)) hi = mid;
+    else lo = mid;
+  }
+  const headY = (1 - ndc(hi)(head)[1]) / 2;
+  return { pos: along(at, dir, hi), look: at, fov, shift: [0, headY - top] };
+}
+
 const mix = (a: number, b: number, k: number) => a + (b - a) * k;
 const mixV = (a: Vec, b: Vec, k: number): Vec => [mix(a[0], b[0], k), mix(a[1], b[1], k), mix(a[2], b[2], k)];
 
@@ -82,6 +136,7 @@ export function shotFor(look: LookId, aspect: number, short: boolean, focus = 0)
     };
   }
   if (look === "play") {
+    if (!tall || aspect > 0.6) return wideTableShot(aspect, short);
     const fov = tall ? 52 : 42;
     const at: Vec = [0, tall ? 0.8 : 0.88, tall ? 0.1 : -0.05];
     const dir = norm([0, tall ? 2.3 : 0.85, 1]);

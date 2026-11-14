@@ -1663,3 +1663,19 @@ html[data-motion="reduce"] .pn-line-glow {
   width: calc(var(--cell) * 0.72);
   height: calc(var(--cell) * 0.72);
 }
+
+/* desktop and tablet landscape: Paanch fills the screen with its own grid, so the rules button
+   stays in the corner above the players, and the fanned hand keeps clear of the right edge */
+@media (min-aspect-ratio: 9/10) and (min-height: 561px) {
+  .room[data-scene="play"] .paanch > .pn-help {
+    left: calc(env(safe-area-inset-left) + 16px);
+  }
+}
+@media (orientation: landscape) and (min-aspect-ratio: 13/10) and (min-height: 561px) {
+  .pn-handzone {
+    padding-inline: 8px 20px;
+  }
+  .pn-bar {
+    padding-inline-end: 12px;
+  }
+}

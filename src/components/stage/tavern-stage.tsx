@@ -319,8 +319,13 @@ function Room({
   const [w, h] = useSize();
   // picking: the camera glides from seat to seat, as the 3D app's does
   const at = useGlide(look === "select" ? focus : 0);
+  const aspect = plateAspect(w, h);
+  // a game on anything wider than an upright phone draws its own table, through a camera fitted to the
+  // screen (the captured pictures were framed for one shape and cut the player across off)
+  // (an upright tablet too: the phone's tall picture, cropped to its squarer shape, loses the player across)
+  const wideGame = look === "play" && (aspect !== "tall" || w / h > 0.6);
   // title, menu and games stand on the pictures rendered from the 3D app: draw through their camera and crop
-  const onPlate = look !== "select";
+  const onPlate = look !== "select" && !wideGame;
   const plateView = useMemo(
     () => (onPlate ? makePlateView(look, w, h) : null),
     [onPlate, look, w, h],
@@ -331,10 +336,10 @@ function Room({
   );
   // the cards, hands and tags read the same projection (set before they render)
   syncView(view);
-  const aspect = plateAspect(w, h);
   // title, menu and picking use the pictures rendered from the 3D app; picking shows all four seated in it
-  const plate =
-    look === "select"
+  const plate = wideGame
+    ? null
+    : look === "select"
       ? `/baked/plate-select${Math.max(0, Math.min(3, focus))}-${aspect}.webp`
       : `/baked/plate-${look}-${aspect}.webp`;
 
@@ -512,10 +517,47 @@ function Room({
           );
         })()}
 
+      {/* a game on a wider screen: the same picture of whoever sits across, taken from the upright phone's
+          shot (the only one that shows them whole) and set on their chair in this view; the table hides
+          the bottom of it as it does the live figure */}
+      {wideGame &&
+        (figIds.length === 0 || !figShown) &&
+        (() => {
+          const sp = BAKED.tall.sprites[`play-c${across}-s2`];
+          if (!sp) return null;
+          const from = makeView("play", BAKED.tall.w, BAKED.tall.h);
+          const chest: [number, number, number] = [0, TABLE_TOP + 0.3, -SEAT_RADIUS];
+          const span = (v: typeof view) =>
+            v.px([0.3, chest[1], chest[2]])[0] - v.px([-0.3, chest[1], chest[2]])[0];
+          const k = span(view) / Math.max(1, span(from));
+          const [fx, fy] = from.px(chest);
+          const [tx, ty] = view.px(chest);
+          return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={sp.src}
+              className="st-sprite"
+              data-out={figIds.length > 0 && figReady ? "" : undefined}
+              onAnimationEnd={(e) => {
+                if (e.animationName === "st-stand-out") setFigShown(true);
+              }}
+              src={sp.src}
+              alt=""
+              draggable={false}
+              style={{
+                left: tx + (sp.x - fx) * k,
+                top: ty + (sp.y - fy) * k,
+                width: sp.w * k,
+                height: sp.h * k,
+              }}
+            />
+          );
+        })()}
+
       {/* the 3D app's table, projected through its camera */}
       <svg
         className="st-table"
-        data-hide
+        data-hide={plate ? "" : undefined}
         width={w}
         height={h}
         viewBox={`0 0 ${w} ${h}`}

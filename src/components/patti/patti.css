@@ -796,3 +796,10 @@ html[data-motion="reduce"] .patti-pot-fly { animation: none; opacity: 0; }
     height: 30px;
   }
 }
+
+/* desktop and tablet landscape: your three cards sit between the side players' cards on the felt */
+@media (min-aspect-ratio: 9/10) and (min-height: 561px) {
+  .patti-hand {
+    --cw: min(clamp(96px, 7vw, 134px), 13dvh);
+  }
+}

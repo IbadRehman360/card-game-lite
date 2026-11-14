@@ -704,3 +704,16 @@ html[data-motion="reduce"] .bh .bh-clock {
 .bh-tc[data-off="true"] {
   filter: none;
 }
+
+/* desktop and tablet landscape: the hand stays inside the play column, not the whole screen */
+@media (min-aspect-ratio: 9/10) and (min-height: 561px) {
+  .bh {
+    --cw: min(clamp(96px, 8.4vw, 156px), 15dvh);
+  }
+  .bh-hand {
+    width: min(
+      calc(var(--col, 100vw) * 0.8),
+      calc(var(--cw) + (var(--n) - 1) * var(--cw) * 0.68)
+    );
+  }
+}
