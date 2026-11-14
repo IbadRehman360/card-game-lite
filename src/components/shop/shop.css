@@ -22,10 +22,12 @@
   color: #ffe48a;
   vertical-align: middle;
 }
-.cost-tag img {
+.cost-tag img,
+.cost-tag > svg {
   width: 16px;
   height: 16px;
   display: block;
+  flex: none;
 }
 
 /* ── coin pill ── */

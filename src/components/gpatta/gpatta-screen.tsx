@@ -54,6 +54,7 @@ export function GPattaScreen({
   game,
   seatChars,
   names,
+  bots,
   paused,
   onMenu,
   onRules,
@@ -63,6 +64,8 @@ export function GPattaScreen({
   seatChars: number[];
   /** Names for the seats (seat 0 defaults to "You"). */
   names?: string[];
+  /** Online: which seats a computer plays (every seat but yours, playing alone). */
+  bots?: boolean[];
   paused: boolean;
   onMenu: () => void;
   onRules: () => void;
@@ -194,8 +197,10 @@ export function GPattaScreen({
   const standings = state.players
     .map((p, i) => ({ i, place: p.place ?? n }))
     .sort((a, b) => a.place - b.place);
+  // against the computer it is free: coins are only shown at a table with friends
+  const wallet = game.online ? game.coins : undefined;
   const expected = myPlace !== null ? payoutFor("gpatta", { place: myPlace, players: n }) : 0;
-  const coins = game.coins.paid ?? expected;
+  const coins = wallet?.paid ?? expected;
 
   return (
     <div className="gp" data-phase={state.phase} data-n={n} data-paused={paused}>
@@ -234,7 +239,7 @@ export function GPattaScreen({
           >
             <span className="seat-pfp-wrap">
               <Portrait id={c.id} accent={c.accent} className="seat-pfp" letter={c.name.slice(0, 1)} />
-              <i className="seat-cpu">CPU</i>
+              {(bots?.[s] ?? true) && <i className="seat-cpu">CPU</i>}
               {safe && <WinFlare key={`f${p.place}`} />}
               {safe && <em className="gp-place">{ordinal(p.place!)}</em>}
               {over && state.g === s && <strong className="gp-stamp">G</strong>}
@@ -408,18 +413,23 @@ export function GPattaScreen({
                 ))}
               </ol>
             </div>
-            <p className="result-coins" data-won={coins > 0}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/coins/coin.svg" alt="" width={20} height={20} />
-              {coins > 0 ? `+${coins}` : "+0"}
-            </p>
+            {wallet && (
+              <p className="result-coins" data-won={coins > 0}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/coins/coin.svg" alt="" width={20} height={20} />
+                {coins > 0 ? `+${coins}` : "+0"}
+              </p>
+            )}
             <div className="result-actions">
-              <button type="button" className="result-next" autoFocus onClick={() => void game.start(n)}>
-                Play again
-                <CostTag amount={game.coins.fee} className="result-cost" />
-              </button>
-              <button type="button" className="result-menu" onClick={onMenu}>
-                Menu
+              {/* a table with friends plays one game: after it, everyone leaves */}
+              {!game.online && (
+                <button type="button" className="result-next" autoFocus onClick={() => void game.start(n)}>
+                  Play again
+                  {wallet && <CostTag amount={wallet.fee} className="result-cost" />}
+                </button>
+              )}
+              <button type="button" className="result-menu" autoFocus={game.online} onClick={onMenu}>
+                {game.online ? "Leave table" : "Menu"}
               </button>
             </div>
           </div>

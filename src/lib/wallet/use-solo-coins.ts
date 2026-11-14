@@ -1,25 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GAMES, type GameKind, type Outcome } from "./economy";
+import type { GameKind, Outcome } from "./economy";
 import { CoinError, openShop, openSolo, settleOnExit, soloSettle } from "./client";
 
 export interface SoloCoins {
-  /** What one game costs. */
+  /** What one game costs. Always 0: playing against the computer is free. */
   fee: number;
-  /** Pays for a game. False (with the shop open) when you can't afford it. */
+  /** Opens the game. Free, so this only fails when the server can't be reached. */
   pay: () => Promise<boolean>;
   /** The game is decided: settle it once (later calls for the same game do nothing). */
   settle: (outcome: Pick<Outcome, "won" | "draw" | "place" | "players">) => void;
   /** Leaving mid-game: it's forfeited. */
   forfeit: () => void;
-  /** Coins the last settled game paid (null while a game is on or before the first one). */
+  /** Coins the last settled game paid. Always 0 against the computer: coins are won at a table with friends. */
   paid: number | null;
 }
 
 /**
- * Coins for one game against the computer: pay to start, settle exactly once when it's decided,
- * forfeit when leaving early or closing the app.
+ * One game against the computer: it costs nothing and pays nothing, but the server still opens and
+ * closes a session for it (so a game left open is tidied up when the next one starts).
  */
 export function useSoloCoins(game: GameKind): SoloCoins {
   const session = useRef<string | null>(null);
@@ -66,5 +66,5 @@ export function useSoloCoins(game: GameKind): SoloCoins {
     };
   }, []);
 
-  return { fee: GAMES[game].fee, pay, settle, forfeit, paid };
+  return { fee: 0, pay, settle, forfeit, paid };
 }

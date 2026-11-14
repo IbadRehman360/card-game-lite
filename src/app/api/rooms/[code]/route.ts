@@ -5,6 +5,8 @@ import { clientId, limit, readJson } from "@/lib/online/guard";
 import {
   RoomError,
   chooseSeat,
+  extraMove,
+  extraTick,
   getRoomView,
   joinRoom,
   leaveRoom,
@@ -68,6 +70,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
         break;
       case "patti":
         await pattiMove(code, token, body.move);
+        break;
+      // Bluff, Paanch, Bhabhi and G Patta all move through these two.
+      case "extraMove":
+        await extraMove(code, token, body.move);
+        break;
+      case "extraTick":
+        await extraTick(code, token);
         break;
       case "tick":
         await pattiTick(code, token);

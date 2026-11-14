@@ -34,6 +34,8 @@ export interface PaanchGame {
   error: string | null;
   /** Changes whenever a new turn begins (restarts the clock). */
   turnKey: string;
+  /** True at a table with friends (the server deals and runs the clock). */
+  online?: boolean;
 }
 
 /** A game of Paanch against the computer, on this phone. */

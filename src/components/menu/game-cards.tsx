@@ -2,8 +2,8 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { PaanchPreview } from "@/components/paanch/paanch-preview";
-import { CostTag } from "@/components/shop/cost-tag";
 import { CardFace } from "@/components/game/playing-card";
+import { specFor, type TableGame } from "@/lib/game/table-games";
 
 /** A card painted exactly like the cards in every game, e.g. "KH", "TS". */
 function Card({ id, r = 0, x = 0, y = 0, back }: { id?: string; r?: number; x?: number; y?: number; back?: boolean }) {
@@ -41,13 +41,20 @@ const Cylinder = () => (
   </svg>
 );
 
-export type GameCardId = "rung" | "patti" | "bluff" | "paanch" | "bhabhi" | "gpatta";
+export type GameCardId = TableGame;
 
-export const GAME_CARDS: { id: GameCardId; name: string; players: string; text: string; art: ReactNode }[] = [
+/** How many can sit down, read off the game's spec: "4", "2 or 4", "3–6". */
+function seatLabel(id: GameCardId) {
+  const seats = specFor(id).players;
+  if (seats.length === 1) return `${seats[0]}`;
+  const run = seats.every((n, i) => i === 0 || n === seats[i - 1] + 1);
+  return run ? `${seats[0]}–${seats[seats.length - 1]}` : seats.join(" or ");
+}
+
+export const GAME_CARDS: { id: GameCardId; name: string; text: string; art: ReactNode }[] = [
   {
     id: "rung",
     name: "Rung",
-    players: "4 players",
     text: "Team up with your partner and win tricks",
     art: (
       <div className="gc-fan">
@@ -61,7 +68,6 @@ export const GAME_CARDS: { id: GameCardId; name: string; players: string; text: 
   {
     id: "patti",
     name: "3 Patti",
-    players: "4 players",
     text: "Bet coins on the best three cards",
     art: (
       <div className="gc-fan">
@@ -76,7 +82,6 @@ export const GAME_CARDS: { id: GameCardId; name: string; players: string; text: 
   {
     id: "bluff",
     name: "Bluff",
-    players: "4 players",
     text: "Lie about your cards, call out liars",
     art: (
       <div className="gc-fan">
@@ -90,7 +95,6 @@ export const GAME_CARDS: { id: GameCardId; name: string; players: string; text: 
   {
     id: "paanch",
     name: "Paanch",
-    players: "2 or 4 players",
     text: "Play cards to make five in a row",
     art: (
       <div className="gc-board">
@@ -101,7 +105,6 @@ export const GAME_CARDS: { id: GameCardId; name: string; players: string; text: 
   {
     id: "bhabhi",
     name: "Bhabhi",
-    players: "4 players",
     text: "Get rid of all your cards first",
     art: (
       <div className="gc-fan">
@@ -116,7 +119,6 @@ export const GAME_CARDS: { id: GameCardId; name: string; players: string; text: 
   {
     id: "gpatta",
     name: "G Patta",
-    players: "4 players",
     text: "Throw pairs, don’t get stuck with the odd card",
     art: (
       <div className="gc-fan">
@@ -129,20 +131,19 @@ export const GAME_CARDS: { id: GameCardId; name: string; players: string; text: 
   },
 ];
 
-/** One game on the home screen, as a row: picture, name, what you do, players, price. */
+/** One game on the home screen, as a row: picture, name, what you do, players. */
 export function GameCard({
   game,
-  fee,
   index,
   autoFocus,
   onClick,
 }: {
   game: (typeof GAME_CARDS)[number];
-  fee: number;
   index: number;
   autoFocus?: boolean;
   onClick: () => void;
 }) {
+  const seats = seatLabel(game.id);
   return (
     <button
       type="button"
@@ -150,15 +151,22 @@ export function GameCard({
       style={{ "--i": index } as CSSProperties}
       autoFocus={autoFocus}
       onClick={onClick}
-      aria-label={`${game.name}, ${game.players}, ${fee} coins`}
+      aria-label={`${game.name}, ${seats} players`}
     >
       <span className="gc-art">{game.art}</span>
       <span className="gc-info">
-        <b className="gc-name">{game.name}</b>
+        <span className="gc-head">
+          <b className="gc-name">{game.name}</b>
+          <span className="gc-players" title={`${seats} players`}>
+            <svg viewBox="0 0 24 24" aria-hidden>
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z" />
+            </svg>
+            {seats}
+          </span>
+        </span>
         <span className="gc-tag">{game.text}</span>
-        <span className="gc-players">{game.players}</span>
       </span>
-      <CostTag amount={fee} className="gc-fee" />
     </button>
   );
 }

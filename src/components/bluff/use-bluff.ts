@@ -31,11 +31,13 @@ export interface BluffGame {
   next: () => void;
   /** Leaving mid-game (forfeits it). */
   leave: () => void;
-  /** The fee, and what the last game paid. */
-  coins: Pick<SoloCoins, "fee" | "paid">;
+  /** The fee, and what the last game paid. Solo only: online the table settles the coins. */
+  coins?: Pick<SoloCoins, "fee" | "paid">;
   error: string | null;
   /** Changes whenever a new turn begins (restarts the clock). */
   turnKey: string;
+  /** True at a table with friends (the server deals and runs the clock). */
+  online?: boolean;
 }
 
 export const bluffTurnKey = (s: BluffState | null) =>

@@ -2,61 +2,44 @@
 
 import { useState } from "react";
 import { sfx } from "@/lib/sfx";
-import { TABLES, type TableId } from "@/lib/patti/engine";
-import { PATTI_FEE, RUNG_FEE, feeFor } from "@/lib/wallet/economy";
+import { specFor, type TableGame } from "@/lib/game/table-games";
 import { Logo } from "./logo";
 import { CostTag } from "@/components/shop/cost-tag";
-import { CODE_LENGTH, type ExtraId, type GameKind, cleanCode } from "./modes";
+import { CODE_LENGTH, type HostOptions, cleanCode, hostFee } from "./modes";
 import { GAME_CARDS, GameCard } from "./game-cards";
+import { HostSettings } from "./host-settings";
 
 export type MenuAction = "play" | "multiplayer" | "rules" | "settings";
 
 
-const Svg = ({ children }: { children: React.ReactNode }) => (
-  <svg
-    viewBox="0 0 24 24"
-    width="26"
-    height="26"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    {children}
-  </svg>
-);
-
 /**
- * The home menu in two steps. First the game, on two posters (Rung, 3 Patti). Then how to play it,
- * in the old layout: two big buttons and a table code to join.
+ * The home menu in two steps. First the game, as a list of cards. Then how to play it — the same three
+ * ways for every game: against the computer, hosting a table, or joining a friend's by code. Hosting
+ * opens a third step with the settings that game allows.
  */
 export function MenuScreen({
   game,
   onGame,
   onPick,
   onHost,
-  onPatti,
+  onPlay,
   onJoin,
-  onExtra,
 }: {
-  game: GameKind | null;
-  onGame: (g: GameKind | null) => void;
+  game: TableGame | null;
+  onGame: (g: TableGame | null) => void;
   onPick: (action: MenuAction) => void;
-  onHost: (game: GameKind, boot: number) => void;
-  onPatti: (table: TableId) => void;
+  onHost: (game: TableGame, options: HostOptions) => void;
+  onPlay: (game: TableGame) => void;
   onJoin: (code: string) => void;
-  onExtra: (id: ExtraId) => void;
 }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const fee = game === "patti" ? PATTI_FEE : RUNG_FEE;
-  const coin = (
-<CostTag amount={fee} className="home-cost" />
-  );
-  // one 3 Patti table for everyone: no boot or table picker
-  const table = TABLES[0];
+  // the game whose host settings are open (null: still on the three modes)
+  const [hostFor, setHostFor] = useState<TableGame | null>(null);
+  const hosting = game !== null && hostFor === game;
+  // only hosting costs coins; playing the computer is free
+  const fee = hostFee(game);
+  const coin = <CostTag amount={fee} className="home-cost" />;
 
   return (
     <div className="menu">
@@ -105,16 +88,25 @@ export function MenuScreen({
                 game={g}
                 index={i}
                 autoFocus={i === 0}
-                fee={feeFor(g.id)}
                 onClick={() => {
                   sfx.select();
-                  if (g.id === "rung" || g.id === "patti") onGame(g.id);
-                  else onExtra(g.id);
+                  onGame(g.id);
                 }}
               />
             ))}
           </div>
           </section>
+        </div>
+      ) : hosting ? (
+        <div className="home-body home-host">
+          <Logo className="menu-logo" />
+          <HostSettings
+            key={game}
+            game={game}
+            fee={fee}
+            onBack={() => setHostFor(null)}
+            onStart={(options) => onHost(game, options)}
+          />
         </div>
       ) : (
         <div className="home-body">
@@ -133,6 +125,8 @@ export function MenuScreen({
             </svg>
           </button>
 
+          <p className="home-game">{specFor(game).name}</p>
+
           <div className="home-buttons">
             <button
               type="button"
@@ -140,31 +134,28 @@ export function MenuScreen({
               autoFocus
               onClick={() => {
                 sfx.select();
-                if (game === "patti") onPatti(table.id);
-                else onPick("play");
+                onPlay(game);
               }}
             >
-              <Svg>
-                <rect x="3" y="4" width="18" height="12" rx="2.5" />
-                <path d="M9 20h6M12 16v4" />
-                <path d="M9.5 8.5 14.5 10l-5 1.5Z" />
-              </Svg>
+              <svg className="home-btn-icon" viewBox="0 0 24 24" aria-hidden fill="currentColor">
+                <path d="M7 4.2v15.6c0 .9 1 1.5 1.8 1L20.4 13a1.2 1.2 0 0 0 0-2L8.8 3.2C8 2.7 7 3.3 7 4.2Z" />
+              </svg>
               Play vs computer
-              {coin}
             </button>
             <button
               type="button"
               className="home-btn home-btn-ghost"
               onClick={() => {
                 sfx.select();
-                onHost(game, table.boot);
+                setHostFor(game);
               }}
             >
-              <Svg>
-                <circle cx="9" cy="8" r="3.2" />
-                <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
-                <path d="M16.5 5.2a3.2 3.2 0 0 1 0 5.6M18.5 14.4c1.6.8 2.5 2.4 2.5 4.6" />
-              </Svg>
+              <svg className="home-btn-icon" viewBox="0 0 24 24" aria-hidden fill="currentColor">
+                <circle cx="9" cy="7.6" r="3.6" />
+                <path d="M2 20.2c0-3.9 3.1-6.8 7-6.8s7 2.9 7 6.8c0 .5-.4.8-.8.8H2.8c-.4 0-.8-.3-.8-.8Z" />
+                <circle cx="16.8" cy="8.4" r="2.9" opacity="0.6" />
+                <path d="M17.6 21h3.6c.4 0 .8-.3.8-.8 0-3.2-2.3-5.6-5.4-5.9a8.4 8.4 0 0 1 1 6.7Z" opacity="0.6" />
+              </svg>
               Host a game
               {coin}
             </button>

@@ -4,17 +4,13 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
-  GAMES,
   type GameKind,
   type LedgerEntry,
-  type Outcome,
   PATTI_BUYIN,
-  PATTI_FEE,
   START_COINS,
   type WalletView,
   isGameKind,
   packById,
-  payoutFor,
 } from "./economy";
 
 /**
@@ -269,26 +265,24 @@ export async function buyPack(key: string, packId: unknown, purchaseId: unknown)
 
 // ───────────── games against the computer ─────────────
 
-/** Ends a session the phone never closed (closed the app mid-game): Rung is lost, 3 Patti chips are cashed out. */
+/**
+ * Playing against the computer is free and pays nothing: coins are won at a table with friends (and
+ * come from the welcome coins and the shop). The session below is still kept, because the game screens
+ * open and settle one for every game — it just never moves a single coin, in either direction. That
+ * also keeps a free 3 Patti table from turning its chips into coins over and over.
+ */
+
+/** Ends a session the phone never closed (it closed the app mid-game). Nothing is owed either way. */
 function closeStale(w: Wallet, id: string) {
-  const s = w.solo[id];
-  if (!s) return;
   delete w.solo[id];
-  if (s.game === "patti" && s.startChips && s.lastChips) {
-    const coins = payoutFor("patti", { chips: s.lastChips, startChips: s.startChips, buyIns: s.buyIns });
-    if (coins > 0) record(w, coins, "3 Patti cash out");
-  }
 }
 
-/** Pays to start a game against the computer. Any earlier one this phone left open is settled first. */
+/** Starts a game against the computer. Free. Any earlier one this phone left open is closed first. */
 export async function openSolo(key: string, game: unknown, startChips?: unknown): Promise<{ session: string; wallet: WalletView }> {
   if (!isGameKind(game)) throw new WalletError("Unknown game");
   return tx(key, (w) => {
     for (const id of Object.keys(w.solo)) closeStale(w, id);
-    const fee = GAMES[game].fee;
-    if (w.coins < fee) throw notEnough(fee, w.coins);
-    void startChips; // the coin table always starts you with your buy-in, whatever the phone says
-    record(w, -fee, game === "patti" ? "3 Patti buy-in" : `${GAMES[game].name} game`);
+    void startChips; // the table always starts you with the same stack, whatever the phone says
     const session = randomUUID();
     w.solo[session] = {
       game,
@@ -306,13 +300,11 @@ function session(w: Wallet, id: unknown): SoloSession {
   return s;
 }
 
-/** 3 Patti against the computer: out of chips, buy back in. */
+/** 3 Patti against the computer: out of chips, sit down again with a fresh stack. Free. */
 export async function soloRebuy(key: string, id: unknown): Promise<WalletView> {
   return tx(key, (w) => {
     const s = session(w, id);
     if (s.game !== "patti") throw new WalletError("Only 3 Patti has buy-ins");
-    if (w.coins < PATTI_FEE) throw notEnough(PATTI_FEE, w.coins);
-    record(w, -PATTI_FEE, "3 Patti buy-in");
     s.buyIns += 1;
     s.lastChips = s.startChips;
     return view(w);
@@ -329,38 +321,15 @@ export async function soloReport(key: string, id: unknown, chips: unknown): Prom
   });
 }
 
-/** Only the fields that game's payout reads, with the types it expects (anything else from the phone is dropped). */
-function cleanOutcome(o: Record<string, unknown>): Outcome {
-  const num = (v: unknown) => (typeof v === "number" || typeof v === "string") && Number.isFinite(Number(v)) ? Math.floor(Number(v)) : undefined;
-  return { won: o.won === true, draw: o.draw === true, place: num(o.place), players: num(o.players), chips: num(o.chips) };
-}
-
-const PAID_REASON: Record<GameKind, string> = {
-  rung: "Rung match won",
-  patti: "3 Patti cash out",
-  bluff: "Bluff won",
-  paanch: "Paanch",
-  bhabhi: "Bhabhi Thulla",
-  gpatta: "G Patta",
-};
-
 /**
- * Ends a game against the computer and pays what it earned (see payoutFor). Settling twice is refused,
- * and a win claimed too soon after paying pays nothing (3 Patti chips always cash out).
+ * Ends a game against the computer. It pays nothing, however it went: a free game can't be a way of
+ * making coins. The outcome the phone sends is read and thrown away, so the screens can keep sending it.
  */
 export async function soloSettle(key: string, id: unknown, outcome: Record<string, unknown>): Promise<{ paid: number; wallet: WalletView }> {
+  void outcome;
   return tx(key, (w) => {
-    const s = session(w, id);
+    session(w, id);
     delete w.solo[id as string];
-    const o = cleanOutcome(outcome ?? {});
-    let paid = 0;
-    if (s.game === "patti") {
-      const chips = o.chips ?? s.lastChips;
-      if (s.startChips && chips !== undefined) paid = payoutFor("patti", { chips, startChips: s.startChips, buyIns: s.buyIns });
-    } else if (Date.now() - s.openedAt >= GAMES[s.game].minMs) {
-      paid = payoutFor(s.game, o);
-    }
-    if (paid > 0) record(w, paid, PAID_REASON[s.game]);
-    return { paid, wallet: view(w) };
+    return { paid: 0, wallet: view(w) };
   });
 }

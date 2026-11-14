@@ -1,6 +1,9 @@
 /**
- * Coins: what every game costs, what it pays, and the coin packs in the shop. Shared by the server
- * (which keeps the real balances) and the phones (which show prices and lock what you can't afford).
+ * Coins: what a table with friends costs, what it pays, and the coin packs in the shop. Shared by the
+ * server (which keeps the real balances) and the phones (which show prices and lock what you can't afford).
+ *
+ * Playing against the computer is free and pays nothing: every fee and payout here is for an online
+ * table. Coins come from the welcome coins, the shop, and winning at a table with friends.
  */
 
 export const START_COINS = 1000;
@@ -27,7 +30,7 @@ export const PATTI_MAX_PER_BUYIN = PATTI_BUYIN * 4;
 
 export type GameKind = "rung" | "patti" | "bluff" | "paanch" | "bhabhi" | "gpatta";
 
-/** How a finished game against the computer went (the parts that matter for each game). */
+/** How a finished game went (the parts that matter for each game). */
 export interface Outcome {
   /** Rung, Bluff, Paanch: your side won. */
   won?: boolean;
@@ -77,14 +80,14 @@ export const feeFor = (game: GameKind | undefined) => GAMES[game ?? "rung"]?.fee
  * Placement games (one loser): getting out in place p of n pays 2·fee·(n−p)/(n−1), rounded down.
  * First out doubles the fee, the loser gets nothing, and on average it pays back a little under the fee.
  */
-function placePay(fee: number, place: unknown, players: unknown): number {
+export function placePay(fee: number, place: unknown, players: unknown): number {
   const n = Math.floor(Number(players));
   const p = Math.floor(Number(place));
   if (!(n >= 2 && n <= 6) || !(p >= 1 && p <= n)) return 0;
   return Math.floor((2 * fee * (n - p)) / (n - 1));
 }
 
-/** Coins a finished game against the computer pays (the server uses this too, so the screen's "+N" is right). */
+/** Coins a finished game at a table with friends pays (the server uses this too, so the screen's "+N" is right). */
 export function payoutFor(game: GameKind, o: Outcome): number {
   switch (game) {
     case "rung":

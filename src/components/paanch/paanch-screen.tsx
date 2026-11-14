@@ -433,7 +433,7 @@ export function PaanchScreen({
           <div className="pn-end-card">
             <p className="pn-end-kicker">{result.winner === null ? "No winner" : `${us} – ${them}`}</p>
             <h2>{result.winner === 0 ? (players === 4 ? "Your side wins" : "You win") : result.winner === 1 ? (players === 4 ? "Their side wins" : `${nameOf(1)} wins`) : "Draw"}</h2>
-            {game.coins && (
+            {game.online && game.coins && (
               <p className="result-coins" data-won={result.winner === 0}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/coins/coin.svg" alt="" width={20} height={20} />
@@ -445,12 +445,15 @@ export function PaanchScreen({
               </p>
             )}
             <div className="pn-end-row">
-              <button type="button" className="pn-btn" data-kind="primary" onClick={() => void game.start(players)}>
-                Play again
-                {game.coins && <CostTag amount={game.coins.fee} className="result-cost" />}
-              </button>
-              <button type="button" className="pn-btn" onClick={onMenu}>
-                Menu
+              {/* a table with friends plays one board: after it, everyone leaves */}
+              {!game.online && (
+                <button type="button" className="pn-btn" data-kind="primary" onClick={() => void game.start(players)}>
+                  Play again
+                  {game.online && game.coins && <CostTag amount={game.coins.fee} className="result-cost" />}
+                </button>
+              )}
+              <button type="button" className="pn-btn" data-kind={game.online ? "primary" : undefined} onClick={onMenu}>
+                {game.online ? "Leave table" : "Menu"}
               </button>
             </div>
           </div>

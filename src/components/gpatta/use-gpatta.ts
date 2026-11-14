@@ -86,25 +86,47 @@ export interface GPattaGame {
   /** Changes whenever your clock (re)starts; empty while it isn't running. */
   clockKey: string;
   error: string | null;
-  /** What a game costs, and the coins the settled game paid (null until then). */
-  coins: { fee: number; paid: number | null };
+  /** What a game costs, and the coins the settled game paid (null until then). Solo only. */
+  coins?: { fee: number; paid: number | null };
   /** Going to the menu mid-game gives it up. */
   leave: () => void;
+  /** True at a table with friends (the server deals and runs the clock). */
+  online?: boolean;
 }
 
 const ME = 0;
 const AUTO_KEY = "baazi:gpatta:auto";
 
-export function useGPatta(paused: boolean): GPattaGame {
-  const [state, setState] = useState<GPattaState | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [autoPairs, setAutoPairsState] = useState(true);
-  // the last step whose animation has finished (anything newer is still playing)
-  const [doneSeq, setDoneSeq] = useState(-1);
-  const errTimer = useRef<number | undefined>(undefined);
-  const coins = useSoloCoins("gpatta");
-  const { pay, settle, forfeit } = coins;
+/**
+ * Plays the sounds of one step as it animates. Returns the timers it set (clear them when the step is
+ * replaced) and how long the whole step takes. Shared by a game on this phone and one at a table.
+ */
+export function playStep(events: GPattaEvent[]): { timers: number[]; total: number } {
+  const fast = motionReduced();
+  const { beats, total } = timeline(events, fast);
+  const timers: number[] = [];
+  const at = (ms: number, f: () => void) => timers.push(window.setTimeout(f, ms));
+  for (const b of beats) {
+    const e = b.e;
+    if (e.t === "reveal-out") {
+      at(b.at, () => sfx.card());
+      at(b.at + (fast ? 0 : 500), () => sfx.flip());
+      at(b.at + (fast ? 0 : 1900), () => sfx.pack());
+    } else if (e.t === "deal") {
+      at(b.at, () => sfx.deal());
+      const n = e.counts.reduce((a, c) => a + c, 0);
+      if (!fast) for (let k = 6; k < n; k += 6) at(b.at + k * DEAL_GAP, () => sfx.card());
+    } else if (e.t === "pairs") at(b.at + (fast ? 0 : 200), () => sfx.gather());
+    else if (e.t === "draw") at(b.at, () => sfx.card());
+    else if (e.t === "safe") at(b.at, () => sfx.confirm());
+    else if (e.t === "end") at(b.at, () => (e.g === ME ? sfx.lose() : sfx.win()));
+  }
+  return { timers, total };
+}
 
+/** "Throw my opening pairs for me", remembered on this phone. */
+export function useAutoPairs(): [boolean, (on: boolean) => void] {
+  const [autoPairs, setAutoPairsState] = useState(true);
   useEffect(() => {
     let off = false;
     try {
@@ -124,6 +146,18 @@ export function useGPatta(paused: boolean): GPattaGame {
       // private window
     }
   }, []);
+  return [autoPairs, setAutoPairs];
+}
+
+export function useGPatta(paused: boolean): GPattaGame {
+  const [state, setState] = useState<GPattaState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [autoPairs, setAutoPairs] = useAutoPairs();
+  // the last step whose animation has finished (anything newer is still playing)
+  const [doneSeq, setDoneSeq] = useState(-1);
+  const errTimer = useRef<number | undefined>(undefined);
+  const coins = useSoloCoins("gpatta");
+  const { pay, settle, forfeit } = coins;
 
   const fail = useCallback((e: unknown) => {
     setError(e instanceof GPattaError ? e.message : "Something went wrong");
@@ -152,26 +186,8 @@ export function useGPatta(paused: boolean): GPattaGame {
   const busy = !!state && seq !== doneSeq;
   useEffect(() => {
     if (!events) return;
-    const fast = motionReduced();
-    const { beats, total } = timeline(events, fast);
-    const timers: number[] = [];
-    const at = (ms: number, f: () => void) => timers.push(window.setTimeout(f, ms));
-    for (const b of beats) {
-      const e = b.e;
-      if (e.t === "reveal-out") {
-        at(b.at, () => sfx.card());
-        at(b.at + (fast ? 0 : 500), () => sfx.flip());
-        at(b.at + (fast ? 0 : 1900), () => sfx.pack());
-      } else if (e.t === "deal") {
-        at(b.at, () => sfx.deal());
-        const n = e.counts.reduce((a, c) => a + c, 0);
-        if (!fast) for (let k = 6; k < n; k += 6) at(b.at + k * DEAL_GAP, () => sfx.card());
-      } else if (e.t === "pairs") at(b.at + (fast ? 0 : 200), () => sfx.gather());
-      else if (e.t === "draw") at(b.at, () => sfx.card());
-      else if (e.t === "safe") at(b.at, () => sfx.confirm());
-      else if (e.t === "end") at(b.at, () => (e.g === ME ? sfx.lose() : sfx.win()));
-    }
-    at(total + 60, () => setDoneSeq(seq));
+    const { timers, total } = playStep(events);
+    timers.push(window.setTimeout(() => setDoneSeq(seq), total + 60));
     return () => timers.forEach((t) => window.clearTimeout(t));
     // a step is identified by its events (a new array on every act)
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -549,6 +549,8 @@ export class NearbyHost {
       waiting: waiting.map((p) => ({ playerId: p.id, name: p.name, isMe: p.id === me.id, avatar: p.avatar })),
       game,
       patti,
+      // a table over the local network plays Rung or 3 Patti only, for now
+      extra: null,
       spectating,
       turnDeadlineIn: deadline ? Math.max(0, deadline - this.clock.now()) : null,
     };

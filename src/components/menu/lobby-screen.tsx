@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { CHARACTERS } from "@/lib/characters";
-import { SERIES_LENGTHS, type Seat, seriesTarget } from "@/lib/game/engine";
+import { SERIES_LENGTHS, seriesTarget } from "@/lib/game/engine";
+import { seatsFor, specFor } from "@/lib/game/table-games";
 import type { RoomView } from "@/lib/online/types";
 import { sfx } from "@/lib/sfx";
 import { Portrait } from "@/components/game/portrait";
@@ -11,9 +12,10 @@ import { ErrorNote } from "./error-note";
 type Act = (action: string, extra?: Record<string, unknown>) => Promise<void>;
 
 /**
- * The table before a game with friends starts, as in the old app: the code to share, the two teams with
- * who sits where (empty seats are played by the computer), the series length, and the host's Start button.
- * The host can tap a player and then a seat to move them, or shuffle the pairs.
+ * The table before a game with friends starts: the code to share, who sits where (empty seats are played
+ * by the computer), the game's settings and the host's Start button. Rung is partners, so it draws two
+ * teams facing each other; every other game is a free-for-all and draws a plain grid of seats, as many
+ * as the host asked for (2 to 6). The host can tap a player and then a seat to move them, or shuffle.
  */
 export function LobbyScreen({
   room,
@@ -33,6 +35,9 @@ export function LobbyScreen({
   const [copied, setCopied] = useState(false);
   const [picked, setPicked] = useState<string | null>(null);
   const isHost = room.me.isHost;
+  const spec = specFor(room.options.game);
+  // the table is as big as the host made it; the seats the server sent are the truth
+  const seats = room.lobby.length || seatsFor(room.options.game, room.options.players);
   const mySeat = room.lobby.findIndex((s) => s.isMe);
   const myTeam = mySeat >= 0 ? mySeat % 2 : 0;
   const humans = room.lobby.filter((s) => s.name).length;
@@ -64,8 +69,9 @@ export function LobbyScreen({
   };
   const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
-  const tapSeat = (seat: Seat) => {
+  const tapSeat = (seat: number) => {
     const s = room.lobby[seat];
+    if (!s) return;
     sfx.select();
     if (isHost) {
       if (picked) {
@@ -78,8 +84,9 @@ export function LobbyScreen({
     if (!s.name) void act("seat", { seat });
   };
 
-  const slot = (seat: Seat) => {
+  const slot = (seat: number) => {
     const s = room.lobby[seat];
+    if (!s) return null;
     const c = CHARACTERS.find((x) => x.id === s.avatar);
     const tags = [s.isMe && "You", s.isHost && "Host"].filter(Boolean) as string[];
     return (
@@ -119,11 +126,11 @@ export function LobbyScreen({
     );
   };
 
-  const team = (seats: [Seat, Seat], tone: "us" | "them") => (
+  const team = (pair: [number, number], tone: "us" | "them") => (
     <div className="lobby-team" data-tone={tone}>
       <div className="lobby-pair">
-        {slot(seats[0])}
-        {slot(seats[1])}
+        {slot(pair[0])}
+        {slot(pair[1])}
       </div>
     </div>
   );
@@ -133,8 +140,10 @@ export function LobbyScreen({
       room.waiting.find((w) => w.playerId === picked)?.name)
     : null;
   const series = room.options.series ?? 3;
-  const isPatti = room.options.game === "patti";
-  const order: Seat[] = ([0, 1, 2, 3] as Seat[]).map((i) => (((mySeat < 0 ? 0 : mySeat) + i) % 4) as Seat);
+  // partners only in Rung: everyone else sits in a plain ring, this phone first
+  const hasTeams = spec.teams && seats === 4;
+  const hasSeries = spec.settings.some((s) => s.key === "series");
+  const order = Array.from({ length: seats }, (_, i) => ((mySeat < 0 ? 0 : mySeat) + i) % seats);
 
   return (
     <div className="lobby">
@@ -174,7 +183,9 @@ export function LobbyScreen({
 
       <section className="lobby-teams">
         <div className="lobby-row">
-          <p className="lobby-label">Players {humans}/4</p>
+          <p className="lobby-label">
+            Players {humans}/{seats}
+          </p>
           {isHost && humans > 1 && (
             <button
               type="button"
@@ -186,15 +197,11 @@ export function LobbyScreen({
                 void act("shufflePairs");
               }}
             >
-              {isPatti ? "Shuffle seats" : "Shuffle"}
+              {hasTeams ? "Shuffle" : "Shuffle seats"}
             </button>
           )}
         </div>
-        {isPatti ? (
-          <div className="lobby-team lobby-four" data-tone="us">
-            <div className="lobby-pair">{order.map((s) => slot(s))}</div>
-          </div>
-        ) : (
+        {hasTeams ? (
           <>
             {team(myTeam === 0 ? [0, 2] : [1, 3], "us")}
             <div className="lobby-vs" aria-hidden>
@@ -202,6 +209,10 @@ export function LobbyScreen({
             </div>
             {team(myTeam === 0 ? [1, 3] : [0, 2], "them")}
           </>
+        ) : (
+          <div className="lobby-team lobby-free" data-tone="us" data-seats={seats}>
+            <div className="lobby-pair">{order.map((s) => slot(s))}</div>
+          </div>
         )}
         {pickedName && <p className="lobby-hint">Now tap where {pickedName} should sit</p>}
         {room.waiting.length > 0 && (
@@ -222,7 +233,7 @@ export function LobbyScreen({
             ))}
           </div>
         )}
-        {isPatti ? null : (
+        {hasSeries && (
           <>
         <div className="lobby-switch" role="radiogroup" aria-label="Series length">
           {SERIES_LENGTHS.map((n) => (

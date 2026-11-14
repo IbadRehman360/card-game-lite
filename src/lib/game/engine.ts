@@ -1,4 +1,6 @@
 import { type Card, type Suit, OPENING_CARD, SUITS, balancedDeal, rankOf, suitOf } from "./cards";
+import { type TableGame, seatsFor, specFor } from "./table-games";
+import { isGameKind } from "../wallet/economy";
 
 /**
  * Rung / Court Piece, "first void makes trump" variant:
@@ -43,15 +45,17 @@ export const MISDEAL_SUIT_LENGTH = 7;
 export const isMisdeal = (hands: Card[][]) =>
   hands.some((h) => SUITS.some((s) => h.filter((c) => suitOf(c) === s).length >= MISDEAL_SUIT_LENGTH));
 
-/** Table settings chosen by the host. */
+/** Table settings chosen by the host. Which of them a game uses is in lib/game/table-games. */
 export interface GameOptions {
+  /** Which card game the table plays. */
+  game?: TableGame;
+  /** Seats at this table (what the game allows: see TABLE_GAMES). */
+  players?: number;
   /**
-   * How many matches (deals) the series is played over: a 3-match series is won by the first team
+   * Rung: how many matches (deals) the series is played over: a 3-match series is won by the first team
    * to 2 points, a 5-match series by the first to 3. A deal is worth 1 point, a Court 2; ties don't count.
    */
   series?: 3 | 5;
-  /** Which card game the table plays (online tables). */
-  game?: "rung" | "patti";
   /** 3 Patti: the boot (10, 50 or 100). */
   boot?: number;
 }
@@ -62,11 +66,20 @@ export const DEFAULT_OPTIONS: GameOptions = { series: 3 };
 /** Points a team needs to win the series. */
 export const seriesTarget = (options: GameOptions | undefined) => Math.ceil((options?.series ?? 3) / 2);
 
+/**
+ * Settings a table can really be played with: an unknown game becomes Rung, the seat count is forced to
+ * one the game supports, and a setting the game doesn't have (a series at 3 Patti, a boot at Rung) is
+ * dropped rather than carried around.
+ */
 export function cleanGameOptions(o: unknown): GameOptions {
-  const x = o as GameOptions | null;
-  const game = x?.game === "patti" ? "patti" : "rung";
-  const boot = x?.boot === 50 || x?.boot === 100 ? x.boot : 10;
-  return { series: x?.series === 5 ? 5 : 3, ...(game === "patti" ? { game, boot } : {}) };
+  const x = (o ?? {}) as Partial<GameOptions>;
+  const game: TableGame = isGameKind(x.game) ? x.game : "rung";
+  const out: GameOptions = { game, players: seatsFor(game, x.players) };
+  for (const setting of specFor(game).settings) {
+    if (setting.key === "series") out.series = x.series === 5 ? 5 : 3;
+    if (setting.key === "boot") out.boot = x.boot === 50 || x.boot === 100 ? x.boot : 10;
+  }
+  return out;
 }
 
 export interface PlayedCard {

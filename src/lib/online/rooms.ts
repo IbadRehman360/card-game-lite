@@ -13,11 +13,28 @@ import {
   startNextDeal,
 } from "../game/engine";
 import { shuffle } from "../game/cards";
+import { seatsFor } from "../game/table-games";
 import { AWAY_SECONDS, PACE, TURN_SECONDS } from "../game/pace";
 import { CHARACTERS, isCharacterId } from "../characters";
 import { seatView } from "../game/view";
 import { type PlayerRow, type RoomRow, type RoomStore, SeatTakenError, getStore, setSweepHook, tablesAvailable } from "./store";
-import type { ChatMessage, JoinResponse, PattiView, RoomView, SeatEntry, StoredState } from "./types";
+import type { ChatMessage, ExtraStored, ExtraView, JoinResponse, PattiView, RoomView, SeatEntry, StoredState } from "./types";
+import {
+  ExtraError,
+  extraAutoMove,
+  extraBotMove,
+  extraMove as extraApply,
+  extraOpeningMs,
+  extraOutcome,
+  extraOver,
+  extraPending,
+  extraSeen,
+  extraTableStep,
+  extraThinkMs,
+  extraTurnSeconds,
+  isExtraGame,
+  newExtra,
+} from "./extra";
 import {
   PATTI_TURN_SECONDS,
   type PattiAction,
@@ -32,7 +49,7 @@ import {
 } from "../patti/engine";
 import { TEMPERS, chooseAction, thinkMs } from "../patti/bot";
 import { pattiForSeat } from "../patti/view";
-import { PATTI_FEE, RUNG_FEE, RUNG_WIN, feeFor, pattiCashOut } from "../wallet/economy";
+import { GAMES, PATTI_FEE, RUNG_FEE, RUNG_WIN, feeFor, pattiCashOut, payoutFor } from "../wallet/economy";
 import { WalletError, balance, chargeAll, move as moveCoins, walletKey } from "../wallet/wallets";
 
 /** A character for someone who didn't pick one, chosen from their name so it stays the same. */
@@ -77,6 +94,15 @@ function cleanName(name: unknown) {
 }
 
 const cleanOptions = (o: unknown): GameOptions => cleanGameOptions(o);
+
+/** How many seats this table has. Options are cleaned on the way in, so this only re-checks them. */
+const tableSeats = (options: GameOptions) => seatsFor(options.game, options.players);
+
+/**
+ * The seats at a table, 0 … n−1. Rung's `Seat` is 0–3; the bigger tables (Bhabhi, G Patta) reuse it as
+ * a plain seat number, so the seat arrays and the lobby stay one shape for every game.
+ */
+const seatList = (n: number): Seat[] => Array.from({ length: n }, (_, i) => i as Seat);
 
 async function loadRoom(store: RoomStore, code: string): Promise<RoomRow> {
   const room = await store.getRoom(code);
@@ -147,6 +173,13 @@ async function touch(store: RoomStore, code: string) {
 }
 
 // ───────────── coins ─────────────
+
+/** What the charge for sitting down is called in the wallet's history. */
+function feeReason(options: GameOptions) {
+  if (options.game === "patti") return "3 Patti buy-in";
+  if (options.game === "rung" || !options.game) return "Rung match";
+  return `${GAMES[options.game].name} table`;
+}
 
 /** Before sitting down: does this wallet have enough for the table's game? (The real charge is at the start.) */
 async function mustAfford(key: string, options: GameOptions) {
@@ -231,7 +264,7 @@ export async function joinRoom(
   const players = await store.listPlayers(code);
   let seat: Seat | null = null;
   if (room.status === "lobby") {
-    seat = SEATS.find((s) => !players.some((p) => p.seat === s)) ?? null;
+    seat = seatList(tableSeats(room.options)).find((s) => !players.some((p) => p.seat === s)) ?? null;
   } else if (room.state) {
     // Mid-game: take over the first seat a computer player is keeping warm.
     seat = room.state.seats.find((s) => s.isBot)?.seat ?? null;
@@ -270,13 +303,19 @@ export async function joinRoom(
     }
     const once = state.patti
       ? `${state.gameId}:in:${player.id}`
-      : `${state.gameId}:s${state.game.seriesNo ?? 1}:fee:${key}`;
+      : state.extra
+        ? `${state.gameId}:fee:${key}`
+        : `${state.gameId}:s${state.game.seriesNo ?? 1}:fee:${key}`;
     const fee = feeFor(room.options.game);
     let paid = false;
     try {
-      await chargeAll([{ key, amount: fee, reason: state.patti ? "3 Patti buy-in" : "Rung match", once, name: playerName }]);
+      await chargeAll([{ key, amount: fee, reason: feeReason(room.options), once, name: playerName }]);
       paid = true;
-      const deadline = patti ? pattiDeadline(patti, seats) : state.deadline;
+      const deadline = patti
+        ? pattiDeadline(patti, seats)
+        : state.extra
+          ? extraDeadline(state.extra, seats)
+          : state.deadline;
       await saveRoom(store, room, { state: { ...state, ...(patti ? { patti } : {}), seats, deadline } });
     } catch (e) {
       await store.deletePlayer(code, player.id);
@@ -299,7 +338,7 @@ export async function getRoomView(rawCode: string, token: string): Promise<RoomV
   const me = players.find((p) => p.token === token);
   if (!token || !me) throw new RoomError("You're not at this table — join it first", 403);
 
-  const lobby = SEATS.map((seat) => {
+  const lobby = seatList(tableSeats(room.options)).map((seat) => {
     const p = players.find((x) => x.seat === seat);
     return {
       seat,
@@ -311,22 +350,30 @@ export async function getRoomView(rawCode: string, token: string): Promise<RoomV
     };
   });
 
+  const tablePlayers = (seats: SeatEntry[]) =>
+    seats.map(({ seat, name, isBot, avatar, awaySince }) => ({
+      seat,
+      name,
+      isBot,
+      avatar: avatar ?? avatarFor(name),
+      awayAt: awaySince ?? null,
+    }));
+
   let game = null;
   let patti: PattiView | null = null;
+  let extra: ExtraView | null = null;
   let spectating = false;
-  if (room.status === "playing" && room.state?.patti) {
+  if (room.status === "playing" && room.state?.extra) {
+    const mySeat = room.state.seats.find((s) => s.playerId === me.id)?.seat ?? null;
+    spectating = mySeat === null;
+    extra = { ...extraSeen(room.state.extra, mySeat), mySeat, players: tablePlayers(room.state.seats) };
+  } else if (room.status === "playing" && room.state?.patti) {
     const mySeat = room.state.seats.find((s) => s.playerId === me.id)?.seat ?? null;
     spectating = mySeat === null;
     patti = {
       state: pattiForSeat(room.state.patti, mySeat),
       mySeat,
-      players: room.state.seats.map(({ seat, name, isBot, avatar, awaySince }) => ({
-        seat,
-        name,
-        isBot,
-        avatar: avatar ?? avatarFor(name),
-        awayAt: awaySince ?? null,
-      })),
+      players: tablePlayers(room.state.seats),
     };
   } else if (room.status === "playing" && room.state) {
     const mySeat = room.state.seats.find((s) => s.playerId === me.id)?.seat;
@@ -360,6 +407,7 @@ export async function getRoomView(rawCode: string, token: string): Promise<RoomV
       .map((p) => ({ playerId: p.id, name: p.name, isMe: p.id === me.id, avatar: p.avatar ?? avatarFor(p.name) })),
     game,
     patti,
+    extra,
     spectating,
     turnDeadlineIn: deadline ? Math.max(0, deadline - Date.now()) : null,
   };
@@ -372,7 +420,7 @@ export async function chooseSeat(rawCode: string, token: string, seat: unknown) 
   if (room.status !== "lobby") throw new RoomError("The game has already started");
   const me = await playerByToken(store, code, token);
   const s = seat === null ? null : (Number(seat) as Seat);
-  if (s !== null && !SEATS.includes(s)) throw new RoomError("Invalid seat");
+  if (s !== null && !seatList(tableSeats(room.options)).includes(s)) throw new RoomError("Invalid seat");
   try {
     await store.updatePlayer(code, me.id, { seat: s });
   } catch (e) {
@@ -395,7 +443,7 @@ export async function movePlayer(rawCode: string, token: string, playerId: unkno
   if (!me.is_host) throw new RoomError("Only the host can arrange the pairs", 403);
 
   const target = seat === null ? null : (Number(seat) as Seat);
-  if (target !== null && !SEATS.includes(target)) throw new RoomError("Invalid seat");
+  if (target !== null && !seatList(tableSeats(room.options)).includes(target)) throw new RoomError("Invalid seat");
   const players = await store.listPlayers(code);
   const mover = players.find((p) => p.id === playerId);
   if (!mover) throw new RoomError("That player has left");
@@ -424,7 +472,7 @@ export async function shufflePairs(rawCode: string, token: string) {
   if (!me.is_host) throw new RoomError("Only the host can arrange the pairs", 403);
 
   const seated = (await store.listPlayers(code)).filter((p) => p.seat !== null);
-  const seats = shuffle(SEATS.slice());
+  const seats = shuffle(seatList(tableSeats(room.options)));
   for (const p of seated) await store.updatePlayer(code, p.id, { seat: null });
   for (const [i, p] of seated.entries()) await store.updatePlayer(code, p.id, { seat: seats[i] });
   await touch(store, code);
@@ -437,7 +485,13 @@ export async function updateOptions(rawCode: string, token: string, options: unk
   const me = await playerByToken(store, code, token);
   if (!me.is_host) throw new RoomError("Only the host can change the rules", 403);
   if (room.status !== "lobby") throw new RoomError("The game has already started");
-  await saveRoom(store, room, { options: cleanOptions(options) });
+  const next = cleanOptions(options);
+  // A smaller table (another game, or fewer seats): anyone past the last seat waits instead of sitting.
+  const seats = tableSeats(next);
+  for (const p of await store.listPlayers(code)) {
+    if (p.seat !== null && p.seat >= seats) await store.updatePlayer(code, p.id, { seat: null });
+  }
+  await saveRoom(store, room, { options: next });
 }
 
 export async function startGame(rawCode: string, token: string) {
@@ -449,38 +503,59 @@ export async function startGame(rawCode: string, token: string) {
   if (room.status !== "lobby") throw new RoomError("The game has already started");
 
   const players = await store.listPlayers(code);
-  // Every seat gets its own character (there are four, one per seat): players keep the one they picked
-  // when nobody earlier took it, everyone else gets one that is still free.
-  const free = CHARACTERS.map((c) => c.id as string);
+  // Every seat gets its own character: players keep the one they picked when nobody earlier took it,
+  // everyone else gets one that is still free. A table with more seats than there are regulars (Bhabhi,
+  // G Patta) starts the list again, so the last seats share a look.
+  const looks = CHARACTERS.map((c) => c.id as string);
+  const free = looks.slice();
   const take = (want: string | undefined) => {
+    if (!free.length) free.push(...looks);
     const i = want ? free.indexOf(want) : -1;
     return free.splice(i >= 0 ? i : 0, 1)[0];
   };
-  const seated = SEATS.map((seat) => players.find((x) => x.seat === seat));
-  const looks = seated.map((p) => (p ? take(p.avatar ?? avatarFor(p.name)) : null));
-  const seats: SeatEntry[] = SEATS.map((seat) => {
+  const table = seatList(tableSeats(room.options));
+  const seated = table.map((seat) => players.find((x) => x.seat === seat));
+  const chosen = seated.map((p) => (p ? take(p.avatar ?? avatarFor(p.name)) : null));
+  const used = new Set<string>();
+  const botName = (avatar: string) => {
+    const base = CHARACTERS.find((c) => c.id === avatar)!.name;
+    let name = base;
+    for (let n = 2; used.has(name); n++) name = `${base} ${n}`;
+    used.add(name);
+    return name;
+  };
+  const seats: SeatEntry[] = table.map((seat) => {
     const p = seated[seat];
-    if (p) return { seat, name: p.name, isBot: false, playerId: p.id, avatar: looks[seat]! };
+    if (p) {
+      used.add(p.name);
+      return { seat, name: p.name, isBot: false, playerId: p.id, avatar: chosen[seat]! };
+    }
     const avatar = take(undefined);
-    const name = CHARACTERS.find((c) => c.id === avatar)!.name;
-    return { seat, name, isBot: true, playerId: null, avatar };
+    return { seat, name: botName(avatar), isBot: true, playerId: null, avatar };
   });
   // Everyone sitting down pays now, all or nobody (the error names who is short).
   const gameId = randomUUID();
-  const isPatti = room.options.game === "patti";
+  const kind = room.options.game ?? "rung";
+  const isPatti = kind === "patti";
+  const extraGame = isExtraGame(kind) ? kind : null;
   const charges = walletsBySeat(seats, players).map((w) => ({
     key: w.key,
-    amount: isPatti ? PATTI_FEE : RUNG_FEE,
-    reason: isPatti ? "3 Patti buy-in" : "Rung match",
-    once: isPatti ? `${gameId}:in:${w.playerId}` : `${gameId}:s1:fee:${w.key}`,
+    amount: feeFor(kind),
+    reason: feeReason(room.options),
+    once: isPatti ? `${gameId}:in:${w.playerId}` : extraGame ? `${gameId}:fee:${w.key}` : `${gameId}:s1:fee:${w.key}`,
     name: w.name,
   }));
   await chargeAll(charges);
   try {
     if (isPatti) {
-      const table = newTable(rulesFor(TABLES[0].boot), undefined, randomInt(4) as Seat);
+      const patti = newTable(rulesFor(TABLES[0].boot), undefined, randomInt(4) as Seat);
       const paid = seats.map((s) => (s.isBot ? s : { ...s, buyIns: 1 }));
-      await saveRoom(store, room, { status: "playing", state: { ...pattiStored(startDeal(table), paid), gameId } });
+      await saveRoom(store, room, { status: "playing", state: { ...pattiStored(startDeal(patti), paid), gameId } });
+      return;
+    }
+    if (extraGame) {
+      const extra = newExtra(extraGame, seats.length);
+      await saveRoom(store, room, { status: "playing", state: { ...extraStored(extra, seats), gameId } });
       return;
     }
     const game = runBots(newGame(room.options), (s) => seats[s].isBot);
@@ -615,6 +690,111 @@ async function pattiNextDeal(store: RoomStore, room: RoomRow, state: StoredState
   }
 }
 
+// ───────────── Bluff, Paanch, Bhabhi and G Patta tables ─────────────
+
+/**
+ * When whoever is on the move runs out of time, in server ms. A computer "runs out" after its thinking
+ * time and a step the table makes by itself (Bluff's next round, G Patta's deal) after it has been shown,
+ * so any phone at the table can ask the server for it then.
+ */
+function extraDeadline(e: ExtraStored, seats: SeatEntry[]): number | null {
+  if (extraOver(e)) return null;
+  const step = extraTableStep(e);
+  if (step) return Date.now() + step.ms;
+  const pending = extraPending(e);
+  if (!pending.length) return null;
+  const opening = extraOpeningMs(e);
+  // a computer among them moves first, and quickly; the people get their full clock after that
+  if (pending.some((s) => seats[s]?.isBot)) return Date.now() + opening + extraThinkMs(e);
+  return Date.now() + opening + extraTurnSeconds(e) * 1000 + GRACE_MS;
+}
+
+function extraStored(e: ExtraStored, seats: SeatEntry[]): StoredState {
+  return { game: NO_RUNG, extra: e, seats, deadline: extraDeadline(e, seats) };
+}
+
+/**
+ * Pays everyone when one of these games has just finished: what each seat gets is the same table of
+ * payouts a game against the computer used to use (last one standing at Bluff, win or draw at Paanch,
+ * the place you got out in at Bhabhi and G Patta). Safe to call twice.
+ */
+async function payExtra(store: RoomStore, room: RoomRow, before: ExtraStored, after: ExtraStored, seats: SeatEntry[], gameId?: string) {
+  if (!gameId || extraOver(before) || !extraOver(after)) return;
+  const players = await store.listPlayers(room.code);
+  for (const w of walletsBySeat(seats, players)) {
+    const outcome = extraOutcome(after, w.seat);
+    if (!outcome) continue;
+    const coins = payoutFor(after.game, outcome);
+    if (coins > 0) await moveCoins(w.key, coins, `${GAMES[after.game].name} won`, `${gameId}:win:${w.seat}:${w.key}`);
+  }
+}
+
+/** Saves a move at one of these tables (and pays out if it ended the game). */
+async function saveExtra(store: RoomStore, room: RoomRow, state: StoredState, before: ExtraStored, after: ExtraStored) {
+  await saveRoom(store, room, { state: { ...extraStored(after, state.seats), gameId: state.gameId } });
+  await payExtra(store, room, before, after, state.seats, state.gameId);
+}
+
+/** A move at a Bluff, Paanch, Bhabhi or G Patta table by the player at this phone. */
+export async function extraMove(rawCode: string, token: string, move: unknown) {
+  return retrying(() => extraMoveOnce(rawCode, token, move));
+}
+async function extraMoveOnce(rawCode: string, token: string, move: unknown) {
+  const store = await getStore();
+  const room = await loadRoom(store, normaliseCode(rawCode));
+  const seat = await mySeatIn(store, room, token);
+  const state = room.state!;
+  if (!state.extra) throw new RoomError("This table plays something else");
+  let next: ExtraStored;
+  try {
+    next = extraApply(state.extra, seat, move);
+  } catch (e) {
+    if (e instanceof ExtraError) throw new RoomError(e.message);
+    throw e;
+  }
+  await saveExtra(store, room, state, state.extra, next);
+}
+
+/**
+ * Anyone at the table may ask for this once whoever is on the move is out of time: a computer makes its
+ * move, the table takes its own step, or a person who went quiet has one made for them.
+ */
+export async function extraTick(rawCode: string, token: string) {
+  const store = await getStore();
+  const room = await loadRoom(store, normaliseCode(rawCode));
+  await playerByToken(store, room.code, token);
+  const state = room.state;
+  if (room.status !== "playing" || !state?.extra || extraOver(state.extra) || !state.deadline) return;
+  if (Date.now() < state.deadline) return; // still thinking
+
+  const before = state.extra;
+  let next: ExtraStored | null = null;
+  const step = extraTableStep(before);
+  if (step) {
+    next = step.next();
+  } else {
+    const pending = extraPending(before);
+    // one computer at a time, so the table is seen to play rather than jumping ahead
+    const bot = pending.find((s) => state.seats[s]?.isBot);
+    if (bot !== undefined) {
+      try {
+        next = extraBotMove(before, bot);
+      } catch {
+        next = null;
+      }
+      if (!next) next = extraAutoMove(before, bot);
+    } else {
+      for (const s of pending) next = extraAutoMove(next ?? before, s);
+    }
+  }
+  if (!next) return;
+  try {
+    await saveExtra(store, room, state, before, next);
+  } catch (e) {
+    if (!(e instanceof RoomError && e.status === 409)) throw e; // someone else got there first
+  }
+}
+
 async function mySeatIn(store: RoomStore, room: RoomRow, token: string): Promise<Seat> {
   if (room.status !== "playing" || !room.state) throw new RoomError("The game hasn't started");
   const me = await playerByToken(store, room.code, token);
@@ -632,6 +812,7 @@ async function playOnce(rawCode: string, token: string, card: unknown, auto?: un
   const seat = await mySeatIn(store, room, token);
   const state = room.state!;
   if (state.patti) throw new RoomError("This table plays 3 Patti");
+  if (state.extra) throw new RoomError(`This table plays ${GAMES[state.extra.game].name}`);
   const played = playCard(state.game, seat, String(card), { auto: auto === true });
   const game = runBots(played, (s) => state.seats[s].isBot);
   await saveRoom(store, room, { state: { ...nextState(state.game, game, state.seats), gameId: state.gameId } });
@@ -647,7 +828,7 @@ export async function timeoutTurn(rawCode: string, token: string) {
   const room = await loadRoom(store, normaliseCode(rawCode));
   await playerByToken(store, room.code, token);
   const state = room.state;
-  if (room.status !== "playing" || !state || state.patti || state.game.deal.result || !state.deadline) return;
+  if (room.status !== "playing" || !state || state.patti || state.extra || state.game.deal.result || !state.deadline) return;
   if (Date.now() < state.deadline) return; // still thinking
   const seat = state.game.deal.turn;
   const legal = legalCards(state.game.deal, seat);
@@ -670,6 +851,8 @@ async function nextDealOnce(rawCode: string, token: string) {
   await mySeatIn(store, room, token);
   const state = room.state!;
   if (state.patti) return pattiNextDeal(store, room, state as StoredState & { patti: PattiState });
+  // Bluff deals its own next round (see extraTick); the other three are one game from start to finish.
+  if (state.extra) return;
   if (!state.game.deal.result) return; // someone else already dealt
   let seats = state.seats;
   if (state.game.seriesWinner != null) {
@@ -702,6 +885,10 @@ export async function reapAway(rawCode: string, token: string) {
   try {
     if (state.patti) {
       await saveRoom(store, room, { state: { ...pattiStored(state.patti, seats), gameId: state.gameId } });
+      return;
+    }
+    if (state.extra) {
+      await saveRoom(store, room, { state: { ...extraStored(state.extra, seats), gameId: state.gameId } });
       return;
     }
     const game = runBots(state.game, (x) => seats[x].isBot);
@@ -751,7 +938,11 @@ async function releaseSeat(store: RoomStore, room: RoomRow, me: PlayerRow) {
   // The seat is held for a few seconds ("Connecting…"); reapAway() then gives it to a computer.
   const seats = state.seats.map((s) => (s.playerId === me.id ? { ...s, playerId: null, awaySince: Date.now(), buyIns: 0 } : s));
   await saveRoom(store, room, {
-    state: patti ? { ...state, patti, seats } : { ...nextState(state.game, state.game, seats), gameId: state.gameId },
+    state: patti
+      ? { ...state, patti, seats }
+      : state.extra
+        ? { ...extraStored(state.extra, seats), gameId: state.gameId }
+        : { ...nextState(state.game, state.game, seats), gameId: state.gameId },
   });
 }
 

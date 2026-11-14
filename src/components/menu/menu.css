@@ -27,13 +27,21 @@
   z-index: 0;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 1.4s var(--ease-out);
+  transition:
+    opacity 1.4s var(--ease-out),
+    transform 0.6s var(--ease-out);
 }
 .stage[data-ready="true"] {
   opacity: 1;
 }
 .stage canvas {
   display: block;
+}
+/* On a phone's title screen the room sits a little lower, so the logo clears the bear. */
+@media (max-aspect-ratio: 9/10) {
+  .room[data-scene="title"] .stage {
+    transform: translateY(7vh);
+  }
 }
 
 /* Darkens the edges the controls sit on, so text always reads. */
@@ -329,7 +337,7 @@
   display: grid;
   grid-template-rows: 1fr auto;
   justify-items: center;
-  padding: 0 16px max(48px, calc(env(safe-area-inset-bottom) + 32px));
+  padding: 0 16px max(34px, calc(env(safe-area-inset-bottom) + 24px));
   cursor: pointer;
 }
 .title-logo {
@@ -2864,28 +2872,17 @@ html[data-motion="reduce"] .arcade-tile {
 
 /* rules: pick the game */
 .rules-games {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   margin-bottom: 14px;
 }
 .rules-games button {
   all: unset;
-  padding: 7px 14px;
-  border-radius: 999px;
-  font: 600 14px/1 var(--font-oswald), sans-serif;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: rgba(255, 236, 190, 0.7);
-  background: rgba(0, 0, 0, 0.3);
-  box-shadow: inset 0 0 0 1px rgba(217, 180, 90, 0.35);
-  cursor: pointer;
-}
-.rules-games button[aria-checked="true"] {
-  color: #1b1206;
-  background: linear-gradient(180deg, #ffe08a, #d9a93a);
-  box-shadow: none;
+  box-sizing: border-box;
+  text-align: center;
+  white-space: nowrap;
+  padding: 9px 8px;
 }
 .rules-games button:focus-visible {
   outline: 2px solid #ffd75e;
@@ -3141,20 +3138,50 @@ html[data-motion="reduce"] .gc {
 }
 
 /* row text: slightly smaller, with more air between the lines */
+.gc {
+  /* the price column is gone, so don't leave an empty gap for it on the right */
+  grid-template-columns: auto minmax(0, 1fr);
+}
 .gc-info {
-  gap: 5px;
+  gap: 6px;
+  padding-right: 2px;
 }
 .gc-name {
-  font-size: clamp(15px, 2.1dvh, 19px);
+  font-size: clamp(16px, 2.2dvh, 20px);
+  letter-spacing: 0.06em;
 }
 .gc-tag {
   font-size: clamp(12px, 1.6dvh, 13.5px);
-  line-height: 1.35;
-  color: rgba(244, 236, 216, 0.7);
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0.03em;
+  color: rgba(244, 236, 216, 0.62);
+}
+.gc-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 .gc-players {
-  margin-top: 1px;
-  font-size: 10px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 3px 8px 3px 6px;
+  border-radius: 999px;
+  background: rgba(242, 193, 78, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(242, 193, 78, 0.28);
+  font-size: 11.5px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  opacity: 1;
+}
+.gc-players svg {
+  width: 11px;
+  height: 11px;
+  fill: currentColor;
 }
 
 /* Rung / 3 Patti step: wider, and the same look as the game list (brown, orange edge, Oswald) */
@@ -3170,6 +3197,19 @@ html[data-motion="reduce"] .gc {
 }
 .home-btn-gold {
   border: 2px solid #2a170f;
+}
+/* button labels: a touch wider tracking so the condensed caps breathe, and solid icons */
+.home-body:not(.home-games) .home-btn {
+  font-weight: 700;
+  letter-spacing: 0.07em;
+}
+.home-btn .home-btn-icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+.home-btn-gold .home-btn-icon {
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.35));
 }
 .home-btn-ghost {
   --edge: rgba(0, 0, 0, 0.5);
@@ -3446,8 +3486,8 @@ html[data-motion="reduce"] .gc {
     gap: 8px;
   }
   .gc {
-    gap: 12px;
-    padding: 6px 10px 6px 6px;
+    gap: 14px;
+    padding: 6px 14px 6px 6px;
     border-radius: 12px;
   }
   .gc-art {
@@ -3457,34 +3497,31 @@ html[data-motion="reduce"] .gc {
     border-radius: 8px;
   }
   .gc-info {
-    gap: 4px;
+    gap: 6px;
   }
   .gc-name {
     font-size: 17px;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  /* no room for the line about the game: name and players only */
   .gc-tag {
-    display: none;
-  }
-  .gc-players {
-    font-size: 10.5px;
+    font-size: 12.5px;
+    line-height: 1.4;
+    -webkit-line-clamp: 2;
   }
   .gc-fee {
-    transform: scale(0.9);
-    transform-origin: right center;
+    transform: none;
   }
 }
 
 /* ─── how to play: one game at a time, four short lines, never scrolls ─── */
 .rules-games {
-  gap: 5px;
-  margin-bottom: 12px;
+  gap: 8px 6px;
+  margin-bottom: 14px;
 }
 .rules-games button {
-  padding: 6px 11px;
-  font-size: 12.5px;
+  padding: 9px 6px;
+  font-size: 14px;
 }
 .rules {
   grid-template-columns: 1fr;
@@ -3577,4 +3614,185 @@ html[data-motion="reduce"] .gc {
   color: #f2c14e;
   font-size: 12.5px;
   letter-spacing: 0.12em;
+}
+
+/* ─── home: the game you picked, above the three ways to play ─── */
+.home-game {
+  margin: -10px 0 -6px;
+  font: 700 15px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #f2c14e;
+}
+
+/* ─── host settings: how big the table is and what the game allows,
+       one labelled row of pills per setting (from src/lib/game/table-games.ts) ─── */
+.home-host {
+  gap: 18px;
+}
+/* a wood panel like the lobby's, so the settings read over the room behind them */
+.host-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 16px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #2f2116, #261a11);
+  border: 1.5px solid #b8762a;
+  box-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.35),
+    0 12px 28px rgba(0, 0, 0, 0.45);
+}
+.host-head {
+  display: grid;
+  place-items: center;
+}
+.host-title {
+  margin: 0;
+  font: 700 20px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #f4ecd8;
+}
+.host-title b {
+  margin-left: 6px;
+  font-weight: 700;
+  color: #f2c14e;
+}
+.host-row {
+  display: grid;
+  gap: 8px;
+}
+.host-label {
+  margin: 0;
+  font: 600 14px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(244, 236, 216, 0.75);
+}
+/* the pill from the rules picker, in rows that fit however many choices a game has */
+.host-pills {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  gap: 6px;
+}
+.host-pills button {
+  all: unset;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 11px 8px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* one chip for every "pick one" row (host settings, rules picker): the menu's buttons in small */
+.host-pills button,
+.rules-games button {
+  border-radius: 10px;
+  font: 700 15px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #f4ecd8;
+  background: linear-gradient(180deg, #3a2a1a, #2a1d12);
+  border: 1.5px solid #8a5a22;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition:
+    transform 90ms ease,
+    box-shadow 90ms ease;
+}
+.host-pills button:active,
+.rules-games button:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+.host-pills button[aria-checked="true"],
+.rules-games button[aria-checked="true"] {
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold) 50%, var(--gold-deep));
+  border: 1.5px solid #2a170f;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.3),
+    0 3px 0 var(--gold-shadow);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.host-pills button:focus-visible {
+  outline: 2px solid #ffd75e;
+  outline-offset: 2px;
+}
+.host-note {
+  margin: 0;
+  text-align: center;
+  font: 400 14px/1.3 var(--font-oswald), sans-serif;
+  letter-spacing: 0.03em;
+  color: rgba(244, 236, 216, 0.6);
+}
+.host-go {
+  margin-top: 2px;
+}
+@media (max-height: 560px) {
+  .host-setup {
+    gap: 10px;
+  }
+  .host-pills button {
+    padding: 7px 8px;
+  }
+}
+
+/* ─── lobby: a free-for-all table (everyone but Rung), 2 to 6 seats in a plain grid ─── */
+.lobby-free .lobby-pair {
+  grid-template-columns: repeat(2, 1fr);
+}
+.lobby-free[data-seats="3"] .lobby-pair,
+.lobby-free[data-seats="5"] .lobby-pair,
+.lobby-free[data-seats="6"] .lobby-pair {
+  grid-template-columns: repeat(3, 1fr);
+}
+/* three to a row: smaller cards so nothing spills off a 360px phone */
+.lobby-free[data-seats="3"] .lobby-seat,
+.lobby-free[data-seats="5"] .lobby-seat,
+.lobby-free[data-seats="6"] .lobby-seat {
+  height: 110px;
+  padding: 8px 4px;
+  border-radius: 12px;
+}
+.lobby-free[data-seats="3"] .lobby-ring,
+.lobby-free[data-seats="5"] .lobby-ring,
+.lobby-free[data-seats="6"] .lobby-ring,
+.lobby-free[data-seats="3"] .lobby-pfp,
+.lobby-free[data-seats="5"] .lobby-pfp,
+.lobby-free[data-seats="6"] .lobby-pfp {
+  width: 46px;
+  height: 46px;
+}
+.lobby-free[data-seats="3"] .lobby-seat[data-filled="false"] .lobby-ring,
+.lobby-free[data-seats="5"] .lobby-seat[data-filled="false"] .lobby-ring,
+.lobby-free[data-seats="6"] .lobby-seat[data-filled="false"] .lobby-ring {
+  width: 40px;
+  height: 40px;
+  margin: 3px 0;
+}
+.lobby-free[data-seats="3"] .lobby-name,
+.lobby-free[data-seats="5"] .lobby-name,
+.lobby-free[data-seats="6"] .lobby-name {
+  font-size: 13.5px;
+  max-width: 100%;
+}
+.lobby-free[data-seats="3"] .lobby-sub,
+.lobby-free[data-seats="5"] .lobby-sub,
+.lobby-free[data-seats="6"] .lobby-sub {
+  font-size: 9.5px;
+}
+.lobby-free[data-seats="3"] .lobby-sub i,
+.lobby-free[data-seats="5"] .lobby-sub i,
+.lobby-free[data-seats="6"] .lobby-sub i {
+  padding: 0 5px;
+  font-size: 9px;
+}
+/* two at the table: one seat each side, a little wider */
+.lobby-free[data-seats="2"] .lobby-seat {
+  height: 142px;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { CHARACTERS } from "@/lib/characters";
 import { setPrefs, usePrefs } from "@/lib/prefs";
 import {
@@ -17,14 +17,17 @@ import { useSoloGame } from "@/components/game/use-solo-game";
 import { PattiScreen } from "@/components/patti/patti-screen";
 import { BluffScreen } from "@/components/bluff/bluff-screen";
 import { useBluff } from "@/components/bluff/use-bluff";
+import { useBluffOnline } from "@/components/bluff/use-bluff-online";
 import { bluffStage } from "@/components/stage/bluff-table";
-import { extraById } from "./more-games";
 import { PaanchScreen } from "@/components/paanch/paanch-screen";
 import { usePaanch } from "@/components/paanch/use-paanch";
+import { usePaanchOnline } from "@/components/paanch/use-paanch-online";
 import { BhabhiScreen } from "@/components/bhabhi/bhabhi-screen";
 import { useBhabhi } from "@/components/bhabhi/use-bhabhi";
+import { useBhabhiOnline } from "@/components/bhabhi/use-bhabhi-online";
 import { GPattaScreen } from "@/components/gpatta/gpatta-screen";
 import { useGPatta } from "@/components/gpatta/use-gpatta";
+import { useGPattaOnline } from "@/components/gpatta/use-gpatta-online";
 import { usePatti } from "@/components/patti/use-patti";
 import { usePattiOnline } from "@/components/patti/use-patti-online";
 import type { PattiStageTable } from "@/components/stage/patti-table";
@@ -38,7 +41,9 @@ import {
   useOnlineRoom,
 } from "@/components/game/use-online-room";
 import { turnSeat } from "@/lib/online/perspective";
-import { PATTI_FEE, RUNG_FEE } from "@/lib/wallet/economy";
+import { TABLES } from "@/lib/patti/engine";
+import type { GameOptions } from "@/lib/game/engine";
+import { seatsFor, type TableGame } from "@/lib/game/table-games";
 import { CoinError, ensureWallet, openShop, openSolo, refreshWallet, settleOnExit, soloSettle, useWallet } from "@/lib/wallet/client";
 import { ShopOverlay } from "@/components/shop/shop";
 import { CoinPill } from "@/components/shop/coin-pill";
@@ -47,7 +52,7 @@ import { ErrorNote, friendlyError } from "./error-note";
 import "@/components/game/game.css";
 import { CharacterSelect } from "./character-select";
 import { type MenuAction, MenuScreen } from "./menu-screen";
-import { CODE_LENGTH, type GameKind, type Mode, cleanCode } from "./modes";
+import { CODE_LENGTH, type Mode, cleanCode, hostFee, isExtraId } from "./modes";
 import { MultiplayerPanel, RulesPanel, SettingsPanel } from "./panels";
 import { Sheet } from "./sheet";
 import { TitleScreen } from "./title-screen";
@@ -70,13 +75,39 @@ const SHEET_TITLE: Record<Exclude<SheetId, null>, string> = {
 // How long a screen takes to leave before the next one arrives (matches .screen[data-leaving] in menu.css).
 const LEAVE_MS = 300;
 
+/** Phone held upright: the same breakpoint menu.css uses for its portrait layout. */
+const PORTRAIT = "(max-aspect-ratio: 9/10)";
+function usePortrait() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = matchMedia(PORTRAIT);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => matchMedia(PORTRAIT).matches,
+    () => false,
+  );
+}
+
+/** The table the host asked for, as the server's options: the game, its seats and whatever it allows. */
+function hostOptions(m: Extract<Mode, { kind: "host" }>): GameOptions {
+  const game = m.game ?? "rung";
+  return {
+    game,
+    players: seatsFor(game, m.players),
+    ...(m.series !== undefined ? { series: m.series } : {}),
+    ...(m.boot !== undefined ? { boot: m.boot } : {}),
+  };
+}
+
 export function MainMenu() {
   const prefs = usePrefs();
   const [scene, setScene] = useState<StageScene>("title");
+  const portrait = usePortrait();
   const [leaving, setLeaving] = useState(false);
   const [mode, setMode] = useState<Mode>({ kind: "practice" });
   // The game picked on the home screen (null: still choosing).
-  const [menuGame, setMenuGame] = useState<GameKind | null>(null);
+  const [menuGame, setMenuGame] = useState<TableGame | null>(null);
   // The table with friends this phone is at (if any), and what went wrong getting there.
   const [online, setOnline] = useState<{ code: string; token: string } | null>(null);
   const [joining, setJoining] = useState(false);
@@ -96,21 +127,37 @@ export function MainMenu() {
   // 3 Patti here: at an online table that plays it, or a solo 3 Patti game
   const isPatti = online ? !!room?.patti : mode.kind === "patti";
   // one of the extra games against the computer (Bluff, ...)
-  const extra = !online && mode.kind === "solo" ? mode.game : null;
+  const extra = !online && mode.kind === "solo" && isExtraId(mode.game) ? mode.game : null;
   const bluff = useBluff(extra !== "bluff" || scene !== "play" || leaving || sheet !== null);
   const paanch = usePaanch(extra !== "paanch" || scene !== "play" || leaving || sheet !== null);
   const bhabhi = useBhabhi(extra !== "bhabhi" || scene !== "play" || leaving || sheet !== null);
   const gpatta = useGPatta(extra !== "gpatta" || scene !== "play" || leaving || sheet !== null);
   const solo = useSoloGame(isPatti || extra !== null || online !== null || scene !== "play" || leaving || sheet !== null);
   const pattiSolo = usePatti(online !== null || mode.kind !== "patti" || scene !== "play" || leaving || sheet !== null);
-  const pattiNet = usePattiOnline(online && room?.status === "playing" ? room : null, net.act, net.error);
+  // The table this phone sits at, once it is playing: what the online hooks read (null while alone or in the lobby).
+  const roomNow = online && room?.status === "playing" ? room : null;
+  const pattiNet = usePattiOnline(roomNow, net.act, net.error);
+  const bluffNet = useBluffOnline(roomNow, net.act, net.error);
+  const paanchNet = usePaanchOnline(roomNow, net.act, net.error);
+  const bhabhiNet = useBhabhiOnline(roomNow, net.act, net.error);
+  const gpattaNet = useGPattaOnline(roomNow, net.act, net.error, scene !== "play" || leaving || sheet !== null);
   const patti = online ? (pattiNet?.game ?? null) : pattiSolo;
+  // Which of the four extra games is on screen: online, whatever the table plays; alone, the one you picked.
+  const extraId = online ? (room?.extra?.game ?? null) : extra;
+  const bluffGame = online ? (bluffNet?.game ?? null) : bluff;
+  const paanchGame = online ? (paanchNet?.game ?? null) : paanch;
+  const bhabhiGame = online ? (bhabhiNet?.game ?? null) : bhabhi;
+  const gpattaGame = online ? (gpattaNet?.game ?? null) : gpatta;
   // You sit in seat 0; the other three regulars fill the rest, partner opposite.
   const soloChars = useMemo(
     () => [focus, ...CHARACTERS.map((_, i) => i).filter((i) => i !== focus)],
     [focus],
   );
   const pattiChars = online && pattiNet ? pattiNet.seatChars : soloChars;
+  const bluffChars = online && bluffNet ? bluffNet.seatChars : soloChars;
+  const paanchChars = online && paanchNet ? paanchNet.seatChars : soloChars;
+  const bhabhiChars = online && bhabhiNet ? bhabhiNet.seatChars : soloChars;
+  const gpattaChars = online && gpattaNet ? gpattaNet.seatChars : soloChars;
   // Coins: a Rung match against the computer is paid for when it starts and pays out when it's won.
   const wallet = useWallet();
   const rungSession = useRef<string | null>(null);
@@ -179,18 +226,20 @@ export function MainMenu() {
       ? { seatChars: pattiChars, state: patti.state, dealKey: String(patti.state.dealNo) }
       : null;
   const bluffTable =
-    scene === "play" && extra === "bluff" && bluff.state ? { ...bluffStage(bluff.state), seatChars: soloChars } : null;
+    scene === "play" && extraId === "bluff" && bluffGame?.state
+      ? { ...bluffStage(bluffGame.state), seatChars: bluffChars }
+      : null;
   // Bhabhi and G Patta: the players sit at the 3D table, their cards are drawn over it
   const cardSeats =
     scene !== "play"
       ? null
-      : extra === "bhabhi" && bhabhi.state
-        ? { seatChars: soloChars, turn: bhabhi.state.bhabhi === null ? bhabhi.state.turn : null }
-        : extra === "gpatta" && gpatta.state
-          ? { seatChars: soloChars, turn: gpatta.state.phase === "draw" ? gpatta.state.turn : null }
+      : extraId === "bhabhi" && bhabhiGame?.state
+        ? { seatChars: bhabhiChars, turn: bhabhiGame.state.bhabhi === null ? bhabhiGame.state.turn : null }
+        : extraId === "gpatta" && gpattaGame?.state
+          ? { seatChars: gpattaChars, turn: gpattaGame.state.phase === "draw" ? gpattaGame.state.turn : null }
           : null;
   const table: StageTable | null =
-    scene === "play" && !isPatti && !extra
+    scene === "play" && !isPatti && !extraId
       ? {
           seatChars,
           snap: game.snap,
@@ -266,9 +315,8 @@ export function MainMenu() {
   };
 
   const onPick = (action: MenuAction) => {
-    if (action === "play") {
-      if (!short(RUNG_FEE)) toSelect({ kind: "practice" });
-    } else setSheet(action);
+    if (action === "play") toSelect({ kind: "practice" });
+    else setSheet(action);
   };
 
 
@@ -290,11 +338,7 @@ export function MainMenu() {
       await ensureWallet();
       const res =
         m.kind === "host"
-          ? await createRoom(
-              name,
-              m.game === "patti" ? { series: 3, game: "patti", boot: m.boot ?? 10 } : { series: 3 },
-              character.id,
-            )
+          ? await createRoom(name, hostOptions(m), character.id)
           : await joinRoom(m.kind === "join" ? m.code : "", name, readToken(m.kind === "join" ? m.code : ""), character.id);
       saveToken(res.code, res.token);
       setOnline(res);
@@ -345,14 +389,16 @@ export function MainMenu() {
     <div className="room" data-scene={scene} data-lobby={scene === "menu" && (online !== null || joining || joinError !== null)}>
       <div className="stage" data-ready={stageReady} aria-hidden>
         <TavernStage
-          scene={scene}
+          // on phones the title screen shares the mode screen's view of the room (bear, lamp, table);
+          // wide screens keep the centred title view, since their menu view leaves room on the left
+          scene={scene === "title" && portrait ? "menu" : scene}
           focus={focus}
           table={table}
           patti={pattiTable}
           bluff={bluffTable}
           seats={cardSeats}
           // Paanch covers the whole room with its own board: the 3D room only needs to tick over
-          idle={scene === "play" && extra === "paanch" && !leaving}
+          idle={scene === "play" && extraId === "paanch" && !leaving}
           onReady={onStageReady}
         />
       </div>
@@ -450,17 +496,16 @@ export function MainMenu() {
             onPick={onPick}
             game={menuGame}
             onGame={setMenuGame}
-            onHost={(g, boot) => {
-              if (!short(g === "patti" ? PATTI_FEE : RUNG_FEE)) toSelect({ kind: "host", game: g, boot });
+            onHost={(g, options) => {
+              // hosting an online table still costs coins; playing the computer doesn't
+              if (!short(hostFee(g))) toSelect({ kind: "host", game: g, ...options });
             }}
-            onPatti={(id) => {
-              if (!short(PATTI_FEE)) toSelect({ kind: "patti", table: id });
+            onPlay={(g) => {
+              if (g === "patti") toSelect({ kind: "patti", table: TABLES[0].id });
+              else if (isExtraId(g)) toSelect({ kind: "solo", game: g });
+              else toSelect({ kind: "practice" });
             }}
             onJoin={(code) => toSelect({ kind: "join", code })}
-            onExtra={(id) => {
-              const g = extraById(id);
-              if (g && !short(g.fee)) toSelect({ kind: "solo", game: id });
-            }}
           />
         )}
         {scene === "select" && (
@@ -508,43 +553,53 @@ export function MainMenu() {
             onRules={() => setSheet("rules")}
           />
         )}
-        {scene === "play" && extra === "gpatta" && (
+        {scene === "play" && extraId === "gpatta" && gpattaGame && (
           <GPattaScreen
-            game={gpatta}
-            seatChars={soloChars}
-            paused={sheet !== null}
-            onMenu={leaveSolo}
+            game={gpattaGame}
+            names={online ? gpattaNet?.names : undefined}
+            bots={online ? gpattaNet?.bots : undefined}
+            seatChars={gpattaChars}
+            paused={sheet !== null && !online}
+            onMenu={online ? leaveTable : leaveSolo}
             onRules={() => setSheet("rules")}
           />
         )}
-        {scene === "play" && extra === "bhabhi" && (
+        {scene === "play" && extraId === "bhabhi" && bhabhiGame && (
           <BhabhiScreen
-            game={bhabhi}
-            seatChars={soloChars}
-            paused={sheet !== null}
-            onMenu={leaveSolo}
+            game={bhabhiGame}
+            names={online ? bhabhiNet?.names : undefined}
+            bots={online ? bhabhiNet?.bots : undefined}
+            seatChars={bhabhiChars}
+            paused={sheet !== null && !online}
+            onMenu={online ? leaveTable : leaveSolo}
             onRules={() => setSheet("rules")}
           />
         )}
-        {scene === "play" && extra === "paanch" && (
+        {scene === "play" && extraId === "paanch" && paanchGame && (
           <PaanchScreen
-            game={paanch}
-            seatChars={soloChars}
-            paused={sheet !== null}
-            onMenu={leaveSolo}
+            game={paanchGame}
+            names={online ? paanchNet?.names : undefined}
+            bots={online ? paanchNet?.bots : undefined}
+            talk={talk}
+            seatChars={paanchChars}
+            paused={sheet !== null && !online}
+            onMenu={online ? leaveTable : leaveSolo}
             onRules={() => setSheet("rules")}
           />
         )}
-        {scene === "play" && extra === "bluff" && (
+        {scene === "play" && extraId === "bluff" && bluffGame && (
           <BluffScreen
-            game={bluff}
-            seatChars={soloChars}
-            paused={sheet !== null}
-            onMenu={leaveSolo}
+            game={bluffGame}
+            names={online ? bluffNet?.names : undefined}
+            bots={online ? bluffNet?.bots : undefined}
+            talk={talk}
+            seatChars={bluffChars}
+            paused={sheet !== null && !online}
+            onMenu={online ? leaveTable : leaveSolo}
             onRules={() => setSheet("rules")}
           />
         )}
-        {scene === "play" && !isPatti && !extra && (
+        {scene === "play" && !isPatti && !extraId && (
           <GameScreen
             solo={game}
             seatChars={seatChars}
@@ -570,7 +625,9 @@ export function MainMenu() {
         wide={sheet === "rules"}
         onClose={() => setSheet(null)}
       >
-        {sheet === "rules" && <RulesPanel game={scene === "menu" ? "rung" : isPatti ? "patti" : (extra ?? "rung")} />}
+        {sheet === "rules" && (
+          <RulesPanel game={scene === "menu" ? (menuGame ?? "rung") : isPatti ? "patti" : (extraId ?? "rung")} />
+        )}
         {sheet === "settings" && <SettingsPanel />}
         {sheet === "pause" && (
           <div className="pause">

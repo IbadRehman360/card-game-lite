@@ -32,7 +32,10 @@ export interface BhabhiGame {
   error: string | null;
   /** Changes whenever it becomes your turn (restarts the clock). */
   turnKey: string;
-  coins: { fee: number; paid: number | null };
+  /** What a game costs and what it paid. Solo only: online the table settles the coins. */
+  coins?: { fee: number; paid: number | null };
+  /** True at a table with friends (the server deals and runs the clock). */
+  online?: boolean;
 }
 
 const playersFor = (s: BhabhiState) => s.players;
@@ -114,27 +117,7 @@ export function useBhabhi(paused: boolean): BhabhiGame {
   }, [turnKey, paused]);
 
   // sounds for what just happened
-  const lastSeen = useRef(0);
-  useEffect(() => {
-    if (!state) return;
-    const fresh = state.events.filter((e) => e.id > lastSeen.current);
-    lastSeen.current = state.seq;
-    if (fresh.some((e) => e.type === "deal")) return;
-    for (const e of fresh) {
-      if (e.type === "play") sfx.card();
-      else if (e.type === "thulla") sfx.trump();
-      else if (e.type === "cleared") sfx.sweep();
-      else if (e.type === "pickup") sfx.gather();
-      else if (e.type === "escape") (e.seat === 0 ? sfx.win : sfx.chips)();
-      else if (e.type === "end") (e.bhabhi === 0 ? sfx.lose : sfx.confirm)();
-    }
-    // your ping waits for a finished trick to clear the table, in time with your clock starting
-    if (state.turn === 0 && fresh.length) {
-      const wait = state.trick.plays.length === 0 && state.lastTrick ? TRICK_PAUSE_MS : 0;
-      if (wait) window.setTimeout(() => sfx.turn(), wait);
-      else sfx.turn();
-    }
-  }, [state]);
+  useBhabhiSounds(state);
 
   // coins: settled once, as soon as your place is known (you got away, or you're the Bhabhi)
   const myPlace = state?.place[0] ?? null;
@@ -161,5 +144,40 @@ export function useBhabhi(paused: boolean): BhabhiGame {
   }, [forfeit]);
 
   return { state, start, move, finish, leave, error, turnKey, coins: { fee: coins.fee, paid: coins.paid } };
+}
+
+/**
+ * Sounds for what just happened at a Bhabhi table. Works the same on a state dealt on this phone and
+ * on one that came from an online table (the first state seen is never replayed).
+ */
+export function useBhabhiSounds(state: BhabhiState | null) {
+  const lastSeen = useRef(0);
+  const started = useRef(false);
+  useEffect(() => {
+    if (!state) return;
+    // joining a table part-way through (or a fresh deal): take it as read, don't replay it
+    if (!started.current) {
+      started.current = true;
+      lastSeen.current = state.seq;
+      return;
+    }
+    const fresh = state.events.filter((e) => e.id > lastSeen.current);
+    lastSeen.current = state.seq;
+    if (fresh.some((e) => e.type === "deal")) return;
+    for (const e of fresh) {
+      if (e.type === "play") sfx.card();
+      else if (e.type === "thulla") sfx.trump();
+      else if (e.type === "cleared") sfx.sweep();
+      else if (e.type === "pickup") sfx.gather();
+      else if (e.type === "escape") (e.seat === 0 ? sfx.win : sfx.chips)();
+      else if (e.type === "end") (e.bhabhi === 0 ? sfx.lose : sfx.confirm)();
+    }
+    // your ping waits for a finished trick to clear the table, in time with your clock starting
+    if (state.turn === 0 && fresh.length) {
+      const wait = state.trick.plays.length === 0 && state.lastTrick ? TRICK_PAUSE_MS : 0;
+      if (wait) window.setTimeout(() => sfx.turn(), wait);
+      else sfx.turn();
+    }
+  }, [state]);
 }
 

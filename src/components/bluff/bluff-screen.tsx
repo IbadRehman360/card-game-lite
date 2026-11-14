@@ -459,25 +459,29 @@ export function BluffScreen({
                 </li>
               ))}
             </ul>
-            {game.coins && (
+            {game.online && game.coins && (
               <p className="result-coins" data-won={state.winner === 0}>
                 {state.winner === 0 ? `+${game.coins.paid ?? BLUFF_WIN} coins` : `Fee ${game.coins.fee} coins lost`}
               </p>
             )}
             <div className="result-actions">
-              <button type="button" className="result-next" autoFocus onClick={game.next}>
-                Play again
-                {game.coins && <CostTag amount={game.coins.fee} className="result-cost" />}
-              </button>
+              {/* a table with friends plays one game: after it, everyone leaves */}
+              {!game.online && (
+                <button type="button" className="result-next" autoFocus onClick={game.next}>
+                  Play again
+                  {game.online && game.coins && <CostTag amount={game.coins.fee} className="result-cost" />}
+                </button>
+              )}
               <button
                 type="button"
                 className="result-menu"
+                autoFocus={game.online}
                 onClick={() => {
                   sfx.back();
                   onMenu();
                 }}
               >
-                Menu
+                {game.online ? "Leave table" : "Menu"}
               </button>
             </div>
           </div>

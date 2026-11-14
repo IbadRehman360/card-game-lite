@@ -68,6 +68,7 @@ export function BhabhiScreen({
   game,
   seatChars,
   names,
+  bots,
   paused,
   onMenu,
   onRules,
@@ -77,6 +78,8 @@ export function BhabhiScreen({
   seatChars: number[];
   /** Optional name for each seat (seat 0 is always "You"). */
   names?: string[];
+  /** Online: which seats a computer plays (every seat but yours, playing alone). */
+  bots?: boolean[];
   paused: boolean;
   onMenu: () => void;
   onRules: () => void;
@@ -144,7 +147,9 @@ export function BhabhiScreen({
   const status = statusLine(state, nameOf);
   const hand = state.hands[0];
   const fan = Math.min(2.4, 26 / Math.max(hand.length, 1));
-  const payout = myPlace !== null ? (game.coins.paid ?? payoutFor("bhabhi", { place: myPlace, players: n })) : 0;
+  // against the computer it is free: coins are only shown at a table with friends
+  const coins = game.online ? game.coins : undefined;
+  const payout = coins && myPlace !== null ? (coins.paid ?? payoutFor("bhabhi", { place: myPlace, players: n })) : 0;
 
   return (
     <div className="bh" data-paused={paused}>
@@ -183,7 +188,7 @@ export function BhabhiScreen({
           >
             <span className="seat-pfp-wrap">
               <Portrait id={c.id} accent={c.accent} className="seat-pfp" letter={name.slice(0, 1)} />
-              <i className="seat-cpu">CPU</i>
+              {(bots?.[s] ?? true) && <i className="seat-cpu">CPU</i>}
               {place !== null && !isBhabhi && <WinFlare key={`f${place}`} />}
               {place !== null && !isBhabhi && (
                 <i className="bh-medal" key={`m${place}`}>
@@ -340,14 +345,19 @@ export function BhabhiScreen({
       {escaped && (
         <div className="bh-away" role="status">
           <b>You got away {ORDINAL[myPlace]}!</b>
-          <span className="result-coins" data-won={payout > 0}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/coins/coin.svg" alt="" width={18} height={18} />+{payout}
-          </span>
+          {coins && (
+            <span className="result-coins" data-won={payout > 0}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/coins/coin.svg" alt="" width={18} height={18} />+{payout}
+            </span>
+          )}
           <div className="bh-away-row">
-            <button type="button" className="result-next" onClick={game.finish}>
-              Skip to end
-            </button>
+            {/* at a table with friends the others play on: you can only watch */}
+            {!game.online && (
+              <button type="button" className="result-next" onClick={game.finish}>
+                Skip to end
+              </button>
+            )}
             <button
               type="button"
               className="result-menu"
@@ -381,25 +391,31 @@ export function BhabhiScreen({
                 </li>
               ))}
             </ol>
-            <p className="result-coins" data-won={payout > 0}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/coins/coin.svg" alt="" width={20} height={20} />
-              {payout > 0 ? `+${payout}` : "+0"}
-            </p>
+            {coins && (
+              <p className="result-coins" data-won={payout > 0}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/coins/coin.svg" alt="" width={20} height={20} />
+                {payout > 0 ? `+${payout}` : "+0"}
+              </p>
+            )}
             <div className="result-actions">
-              <button type="button" className="result-next" autoFocus onClick={() => void game.start(n)}>
-                Play again
-                <CostTag amount={game.coins.fee} className="result-cost" />
-              </button>
+              {/* a table with friends plays one game: after it, everyone leaves */}
+              {!game.online && (
+                <button type="button" className="result-next" autoFocus onClick={() => void game.start(n)}>
+                  Play again
+                  {coins && <CostTag amount={coins.fee} className="result-cost" />}
+                </button>
+              )}
               <button
                 type="button"
                 className="result-menu"
+                autoFocus={game.online}
                 onClick={() => {
                   sfx.back();
                   onMenu();
                 }}
               >
-                Menu
+                {game.online ? "Leave table" : "Menu"}
               </button>
             </div>
           </div>
