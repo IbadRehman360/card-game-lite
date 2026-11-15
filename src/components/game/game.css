@@ -2385,3 +2385,12 @@ html[data-motion="reduce"] .seat-count {
   font-weight: 600;
   font-size: 13px;
 }
+/* a scaled box becomes the frame for fixed panels inside it: the sticker deck and chat were trapped in the
+   95px-wide button row. Scale the dock's buttons, not the dock. */
+:root .my-row > .social-dock {
+  scale: none;
+}
+:root .my-row > .social-dock > button,
+:root .my-row > .social-dock > .chat-btn {
+  scale: 1.08;
+}

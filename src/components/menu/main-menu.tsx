@@ -483,12 +483,14 @@ export function MainMenu() {
    * with the other seats named like people, as they would be at a quick match.
    */
   const playLocal = (g: TableGame, names: string[] = []) => {
-    setMatching(null);
-    setLocalSearch(null);
     setJoining(false);
     setJoinError(null);
     setLocalNames(["", ...names, ...personaNames(Math.max(0, 5 - names.length), [...names, ...(prefs.name ? [prefs.name] : [])])]);
+    // the search screen stays up ("Starting…") while the fee is paid and the deal is made, so there's never
+    // a blank wait between it and the table
     const started = (ok: boolean | void) => {
+      setMatching(null);
+      setLocalSearch(null);
       if (ok !== false) go("play");
       else go("menu");
     };

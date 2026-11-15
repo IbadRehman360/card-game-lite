@@ -305,3 +305,14 @@
 :root .lobby-host .lobby-vs {
   margin: 0;
 }
+/* host lobby: the table code sits on the room, no panel */
+:root .lobby-host .lobby-code-wrap {
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+/* your seat: one gold border instead of a dark border inside a gold ring (the corners didn't meet) */
+:root:root :is(.match, .lobby-host) .lobby-seat[data-me="true"] {
+  border: 3px solid #ffd75e;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.25), 0 4px 0 rgba(0, 0, 0, 0.45), 0 0 14px rgba(255, 215, 94, 0.25);
+}

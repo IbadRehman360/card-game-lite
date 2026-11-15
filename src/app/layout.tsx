@@ -31,7 +31,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${ui.variable} ${uiAlt.variable} antialiased`} suppressHydrationWarning>
-      <body className="h-dvh w-screen overflow-hidden">
+      <body className="h-dvh w-screen overflow-hidden" suppressHydrationWarning>
         {children}
         <PwaBoot />
       </body>
