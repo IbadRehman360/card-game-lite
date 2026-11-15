@@ -1,13 +1,12 @@
 import "server-only";
 import { randomBytes, randomInt, randomUUID } from "node:crypto";
-import { runBots } from "../game/bot";
+import { chooseCard, runBots } from "../game/bot";
 import {
   type GameOptions,
   type GameState,
   type Seat,
   cleanGameOptions,
   SEATS,
-  legalCards,
   newGame,
   playCard,
   startNextDeal,
@@ -18,7 +17,8 @@ import { AWAY_SECONDS, PACE, TURN_SECONDS } from "../game/pace";
 import { CHARACTERS, isCharacterId } from "../characters";
 import { seatView } from "../game/view";
 import { type PlayerRow, type RoomRow, type RoomStore, SeatTakenError, getStore, setSweepHook, tablesAvailable } from "./store";
-import type { ChatMessage, ExtraStored, ExtraView, JoinResponse, PattiView, RoomView, SeatEntry, StoredState } from "./types";
+import type { ChatMessage, ExtraStored, ExtraView, JoinResponse, MatchView, PattiView, QuickMeta, RoomView, SeatEntry, StoredState } from "./types";
+import { type BanterMoment, BANTER_GAP_MS, banterLine, humanThinkMs, personaNames, quickSchedule } from "./personas";
 import {
   ExtraError,
   extraAutoMove,
@@ -49,8 +49,8 @@ import {
 } from "../patti/engine";
 import { TEMPERS, chooseAction, thinkMs } from "../patti/bot";
 import { pattiForSeat } from "../patti/view";
-import { GAMES, PATTI_FEE, RUNG_FEE, RUNG_WIN, feeFor, pattiCashOut, payoutFor } from "../wallet/economy";
-import { WalletError, balance, chargeAll, move as moveCoins, walletKey } from "../wallet/wallets";
+import { GAMES, type GameKind, PATTI_FEE, RUNG_FEE, RUNG_WIN, feeFor, isGameKind, pattiCashOut, payoutFor } from "../wallet/economy";
+import { WalletError, balance, chargeAll, move as moveCoins, walletKey, walletKeyOrNull } from "../wallet/wallets";
 
 /** A character for someone who didn't pick one, chosen from their name so it stays the same. */
 function avatarFor(name: string) {
@@ -121,18 +121,34 @@ async function playerByToken(store: RoomStore, code: string, token: string): Pro
 const GRACE_MS = 2500;
 
 /**
+ * A person whose phone has gone quiet (closed, reloading, no signal) keeps their seat, and the server
+ * moves for them when their time runs out. After one such move they're marked `dropped` and only get
+ * this long per turn, so the table isn't kept waiting; the phone clears it when it's back (action "back",
+ * or any move of its own) and they have their full clock again.
+ */
+const DROPPED_MS = 3000;
+
+/** The seats with this one marked as dropped (or not). */
+const markDropped = (seats: SeatEntry[], seat: number, dropped: boolean): SeatEntry[] =>
+  seats.map((s) => (s.seat === seat && !s.isBot && Boolean(s.dropped) !== dropped ? { ...s, dropped } : s));
+
+/**
  * When the player now on turn runs out of time, in server ms. The table reveals the moves made since
  * `before` (bots' cards, finished haaths) one at a time, so the clock starts after that replay.
  */
 function turnDeadline(before: GameState | null, game: GameState, seats: SeatEntry[]): number | null {
   const d = game.deal;
-  if (d.result || seats[d.turn].isBot) return null;
+  const onTurn = seats[d.turn];
+  if (d.result || (onTurn.isBot && !onTurn.lifelike)) return null;
   const from = before && before.dealNo === game.dealNo ? before.deal.events.length : 0;
   let reveal = 0;
   for (let i = from; i < d.events.length; i++) {
     const prev = d.events[i - 1];
     reveal += !prev ? PACE.first : prev.type === "trick" ? PACE.afterTrick : PACE.afterPlay;
   }
+  // a quick-match computer "thinks" like a person once the table has caught up (and the cards are dealt)
+  if (onTurn.isBot) return Date.now() + reveal + (from === 0 ? PACE.deal : 0) + humanThinkMs(TURN_SECONDS);
+  if (onTurn.dropped) return Date.now() + reveal + (from === 0 ? PACE.deal : 0) + DROPPED_MS;
   return Date.now() + reveal + TURN_SECONDS * 1000 + GRACE_MS;
 }
 
@@ -163,6 +179,22 @@ async function retrying<T>(step: () => Promise<T>, attempts = 3): Promise<T> {
   }
 }
 
+/** What a table's state carries from one move to the next besides the game: its id, and whether it is a quick match. */
+const keep = (s: StoredState) => ({ gameId: s.gameId, ...(s.quick ? { quick: true } : {}) });
+
+/**
+ * The computer players move. At a hosted table they all play at once and the phones replay it; at a
+ * quick-match table (lifelike seats) each one waits its own human-looking thinking time, and any phone
+ * at the table asks for its move once that is up (see timeoutTurn).
+ */
+const botsMove = (game: GameState, seats: SeatEntry[]) => runBots(game, (s) => seats[s].isBot && !seats[s].lifelike);
+
+/** A seat whose player has gone is handed to a computer: plainly marked at a hosted table, unnoticed at a quick match. */
+const toComputer = (s: SeatEntry, quick?: boolean): SeatEntry =>
+  quick
+    ? { ...s, isBot: true, lifelike: true, playerId: null, awaySince: null }
+    : { ...s, isBot: true, playerId: null, awaySince: null, name: `${s.name} (bot)` };
+
 /** Bump the version (e.g. after a player row changed) so every client re-fetches. */
 async function touch(store: RoomStore, code: string) {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -191,7 +223,7 @@ async function mustAfford(key: string, options: GameOptions) {
 /** The wallets of the people (not computers) in these seats. */
 function walletsBySeat(seats: SeatEntry[], players: PlayerRow[]) {
   return seats.flatMap((s) => {
-    if (s.isBot || !s.playerId) return [];
+    if (s.isBot || !s.playerId || s.free) return [];
     const p = players.find((x) => x.id === s.playerId);
     return p?.wallet ? [{ seat: s.seat, name: s.name, key: p.wallet, playerId: p.id }] : [];
   });
@@ -209,7 +241,7 @@ async function payRungSeries(store: RoomStore, code: string, before: GameState, 
 
 /** 3 Patti: a player's chips turned back into coins as they leave the table. */
 async function cashOutPatti(state: StoredState, seat: SeatEntry, key: string | undefined) {
-  if (!state.patti || !key || !state.gameId) return;
+  if (!state.patti || !key || !state.gameId || seat.free) return;
   const chips = state.patti.players[seat.seat].chips;
   // real players at a real table: what you have in front of you goes back to the wallet as it is
   const coins = pattiCashOut(chips, state.patti.rules.startChips);
@@ -259,6 +291,7 @@ export async function joinRoom(
   const room = await loadRoom(store, code);
 
   if (existingToken && (await store.playerByToken(code, existingToken))) return { code, token: existingToken };
+  if (room.quick && room.status === "lobby") throw new RoomError("That table is just starting, try again in a moment", 409);
   const key = walletKey(wallet);
 
   const players = await store.listPlayers(code);
@@ -350,11 +383,13 @@ export async function getRoomView(rawCode: string, token: string): Promise<RoomV
     };
   });
 
+  // At a quick match nobody is told who is a computer: they're all just players.
+  const quick = Boolean(room.quick || room.state?.quick);
   const tablePlayers = (seats: SeatEntry[]) =>
     seats.map(({ seat, name, isBot, avatar, awaySince }) => ({
       seat,
       name,
-      isBot,
+      isBot: isBot && !quick,
       avatar: avatar ?? avatarFor(name),
       awayAt: awaySince ?? null,
     }));
@@ -380,7 +415,7 @@ export async function getRoomView(rawCode: string, token: string): Promise<RoomV
     const seatPlayers = room.state.seats.map(({ seat, name, isBot, avatar, awaySince }) => ({
       seat,
       name,
-      isBot,
+      isBot: isBot && !quick,
       avatar: avatar ?? avatarFor(name),
       awayAt: awaySince ?? null,
     }));
@@ -410,6 +445,11 @@ export async function getRoomView(rawCode: string, token: string): Promise<RoomV
     extra,
     spectating,
     turnDeadlineIn: deadline ? Math.max(0, deadline - Date.now()) : null,
+    quick,
+    match: room.status === "lobby" && room.quick ? matchView(room, room.quick, players, me.id) : null,
+    dropped: Boolean(room.status === "playing" && room.state?.seats.find((s) => s.playerId === me.id)?.dropped),
+    finished:
+      room.status === "playing" && !!room.state && (room.state.extra ? extraOver(room.state.extra) : !room.state.patti && room.state.game.seriesWinner != null),
   };
 }
 
@@ -418,6 +458,7 @@ export async function chooseSeat(rawCode: string, token: string, seat: unknown) 
   const code = normaliseCode(rawCode);
   const room = await loadRoom(store, code);
   if (room.status !== "lobby") throw new RoomError("The game has already started");
+  if (room.quick) throw new RoomError("Seats at a quick match are given out for you");
   const me = await playerByToken(store, code, token);
   const s = seat === null ? null : (Number(seat) as Seat);
   if (s !== null && !seatList(tableSeats(room.options)).includes(s)) throw new RoomError("Invalid seat");
@@ -558,7 +599,7 @@ export async function startGame(rawCode: string, token: string) {
       await saveRoom(store, room, { status: "playing", state: { ...extraStored(extra, seats), gameId } });
       return;
     }
-    const game = runBots(newGame(room.options), (s) => seats[s].isBot);
+    const game = botsMove(newGame(room.options), seats);
     await saveRoom(store, room, { status: "playing", state: { ...nextState(null, game, seats), gameId } });
   } catch (e) {
     // the game didn't start after all: give the coins back
@@ -583,7 +624,9 @@ function pattiDeadline(p: PattiState, seats: SeatEntry[]): number | null {
   const who = pattiActor(p);
   // the deal animation at the start of a deal
   const dealing = p.events.length <= 1 ? 1800 : 0;
+  if (seats[who].isBot && seats[who].lifelike) return Date.now() + dealing + humanThinkMs(p.pending ? SIDESHOW_SECONDS : PATTI_TURN_SECONDS);
   if (seats[who].isBot) return Date.now() + dealing + thinkMs(p);
+  if (seats[who].dropped) return Date.now() + dealing + DROPPED_MS;
   return Date.now() + dealing + (p.pending ? SIDESHOW_SECONDS : PATTI_TURN_SECONDS) * 1000 + GRACE_MS;
 }
 
@@ -621,8 +664,11 @@ async function pattiMoveOnce(rawCode: string, token: string, action: unknown) {
   }
   // looking at your cards doesn't restart anyone's clock
   const sameTurn = move.type === "see" && pattiActor(p) === pattiActor(state.patti) && !p.result;
-  const deadline = sameTurn ? (state.deadline ?? null) : pattiDeadline(p, state.seats);
-  await saveRoom(store, room, { state: { ...state, patti: p, deadline } });
+  const seats = markDropped(state.seats, seat, false);
+  const deadline = sameTurn ? (state.deadline ?? null) : pattiDeadline(p, seats);
+  const after = { ...state, patti: p, seats, deadline };
+  await saveRoom(store, room, { state: after });
+  await banter(store, room.code, state, after);
 }
 
 /**
@@ -653,8 +699,12 @@ export async function pattiTick(rawCode: string, token: string) {
   } else {
     p = pattiAct(p, who, p.pending ? { type: "sideshowReply", accept: false } : { type: "pack", auto: true });
   }
+  // a person who went quiet: their next turns are short until their phone is back
+  const seats = state.seats[who].isBot ? state.seats : markDropped(state.seats, who, true);
   try {
-    await saveRoom(store, room, { state: { ...state, patti: p, deadline: pattiDeadline(p, state.seats) } });
+    const after = { ...state, patti: p, seats, deadline: pattiDeadline(p, seats) };
+    await saveRoom(store, room, { state: after });
+    await banter(store, room.code, state, after);
   } catch (e) {
     if (!(e instanceof RoomError && e.status === 409)) throw e; // someone else got there first
   }
@@ -678,13 +728,14 @@ async function pattiNextDeal(store: RoomStore, room: RoomRow, state: StoredState
         seats = seats.map((x) => (x.seat === s ? { ...x, buyIns: (x.buyIns ?? 1) + 1 } : x));
       } catch (e) {
         if (!(e instanceof WalletError)) throw e;
-        seats = seats.map((x) => (x.seat === s ? { ...x, isBot: true, playerId: null, awaySince: null, name: `${x.name} (bot)` } : x));
+        // at a quick match you play on for free (and cash nothing out); at a hosted table a computer sits in
+        seats = seats.map((x) => (x.seat === s ? (state.quick ? { ...x, free: true } : toComputer(x)) : x));
       }
     }
     c.players[s].chips = c.rules.startChips;
   }
   try {
-    await saveRoom(store, room, { state: { ...pattiStored(startDeal(c), seats), gameId: state.gameId } });
+    await saveRoom(store, room, { state: { ...pattiStored(startDeal(c), seats), ...keep(state) } });
   } catch (e) {
     if (!(e instanceof RoomError && e.status === 409)) throw e;
   }
@@ -705,7 +756,10 @@ function extraDeadline(e: ExtraStored, seats: SeatEntry[]): number | null {
   if (!pending.length) return null;
   const opening = extraOpeningMs(e);
   // a computer among them moves first, and quickly; the people get their full clock after that
-  if (pending.some((s) => seats[s]?.isBot)) return Date.now() + opening + extraThinkMs(e);
+  const bot = pending.find((s) => seats[s]?.isBot);
+  if (bot !== undefined && seats[bot].lifelike) return Date.now() + opening + humanThinkMs(extraTurnSeconds(e));
+  if (bot !== undefined) return Date.now() + opening + extraThinkMs(e);
+  if (pending.every((s) => seats[s]?.dropped)) return Date.now() + opening + DROPPED_MS;
   return Date.now() + opening + extraTurnSeconds(e) * 1000 + GRACE_MS;
 }
 
@@ -731,8 +785,10 @@ async function payExtra(store: RoomStore, room: RoomRow, before: ExtraStored, af
 
 /** Saves a move at one of these tables (and pays out if it ended the game). */
 async function saveExtra(store: RoomStore, room: RoomRow, state: StoredState, before: ExtraStored, after: ExtraStored) {
-  await saveRoom(store, room, { state: { ...extraStored(after, state.seats), gameId: state.gameId } });
+  const next = { ...extraStored(after, state.seats), ...keep(state) };
+  await saveRoom(store, room, { state: next });
   await payExtra(store, room, before, after, state.seats, state.gameId);
+  await banter(store, room.code, state, next);
 }
 
 /** A move at a Bluff, Paanch, Bhabhi or G Patta table by the player at this phone. */
@@ -752,7 +808,7 @@ async function extraMoveOnce(rawCode: string, token: string, move: unknown) {
     if (e instanceof ExtraError) throw new RoomError(e.message);
     throw e;
   }
-  await saveExtra(store, room, state, state.extra, next);
+  await saveExtra(store, room, { ...state, seats: markDropped(state.seats, seat, false) }, state.extra, next);
 }
 
 /**
@@ -769,6 +825,7 @@ export async function extraTick(rawCode: string, token: string) {
 
   const before = state.extra;
   let next: ExtraStored | null = null;
+  let seats = state.seats;
   const step = extraTableStep(before);
   if (step) {
     next = step.next();
@@ -785,11 +842,13 @@ export async function extraTick(rawCode: string, token: string) {
       if (!next) next = extraAutoMove(before, bot);
     } else {
       for (const s of pending) next = extraAutoMove(next ?? before, s);
+      // the people who went quiet: their next turns are short until their phones are back
+      for (const s of pending) seats = markDropped(seats, s, true);
     }
   }
   if (!next) return;
   try {
-    await saveExtra(store, room, state, before, next);
+    await saveExtra(store, room, { ...state, seats }, before, next);
   } catch (e) {
     if (!(e instanceof RoomError && e.status === 409)) throw e; // someone else got there first
   }
@@ -814,9 +873,13 @@ async function playOnce(rawCode: string, token: string, card: unknown, auto?: un
   if (state.patti) throw new RoomError("This table plays 3 Patti");
   if (state.extra) throw new RoomError(`This table plays ${GAMES[state.extra.game].name}`);
   const played = playCard(state.game, seat, String(card), { auto: auto === true });
-  const game = runBots(played, (s) => state.seats[s].isBot);
-  await saveRoom(store, room, { state: { ...nextState(state.game, game, state.seats), gameId: state.gameId } });
-  await payRungSeries(store, room.code, state.game, game, state.seats, state.gameId);
+  // a card the player picked means they're here (one their phone played on time for them doesn't say so)
+  const seats = auto === true ? state.seats : markDropped(state.seats, seat, false);
+  const game = botsMove(played, seats);
+  const after = { ...nextState(state.game, game, seats), ...keep(state) };
+  await saveRoom(store, room, { state: after });
+  await payRungSeries(store, room.code, state.game, game, seats, state.gameId);
+  await banter(store, room.code, state, after);
 }
 
 /**
@@ -831,12 +894,17 @@ export async function timeoutTurn(rawCode: string, token: string) {
   if (room.status !== "playing" || !state || state.patti || state.extra || state.game.deal.result || !state.deadline) return;
   if (Date.now() < state.deadline) return; // still thinking
   const seat = state.game.deal.turn;
-  const legal = legalCards(state.game.deal, seat);
-  const played = playCard(state.game, seat, legal[randomInt(legal.length)], { auto: true });
-  const game = runBots(played, (s) => state.seats[s].isBot);
+  // A quick-match computer whose thinking time is up plays its own card. So does a person who went quiet:
+  // the computer plays for them (their seat stays theirs, see DROPPED_MS) until their phone is back.
+  const human = !state.seats[seat].isBot;
+  const played = playCard(state.game, seat, chooseCard(state.game, seat), human ? { auto: true } : undefined);
+  const seats = human ? markDropped(state.seats, seat, true) : state.seats;
+  const game = botsMove(played, seats);
   try {
-    await saveRoom(store, room, { state: { ...nextState(state.game, game, state.seats), gameId: state.gameId } });
-    await payRungSeries(store, room.code, state.game, game, state.seats, state.gameId);
+    const after = { ...nextState(state.game, game, seats), ...keep(state) };
+    await saveRoom(store, room, { state: after });
+    await payRungSeries(store, room.code, state.game, game, seats, state.gameId);
+    await banter(store, room.code, state, after);
   } catch (e) {
     if (!(e instanceof RoomError && e.status === 409)) throw e; // someone else got there first
   }
@@ -863,12 +931,13 @@ async function nextDealOnce(rawCode: string, token: string) {
         await moveCoins(w.key, -RUNG_FEE, "Rung match", `${state.gameId}:s${series}:fee:${w.key}`);
       } catch (e) {
         if (!(e instanceof WalletError)) throw e;
-        seats = seats.map((x) => (x.seat === w.seat ? { ...x, isBot: true, playerId: null, awaySince: null, name: `${x.name} (bot)` } : x));
+        // at a quick match you play on for free (and win nothing); at a hosted table a computer sits in
+        seats = seats.map((x) => (x.seat === w.seat ? (state.quick ? { ...x, free: true } : toComputer(x)) : x));
       }
     }
   }
-  const game = runBots(startNextDeal(state.game), (s) => seats[s].isBot);
-  await saveRoom(store, room, { state: { ...nextState(state.game, game, seats), gameId: state.gameId } });
+  const game = botsMove(startNextDeal(state.game), seats);
+  await saveRoom(store, room, { state: { ...nextState(state.game, game, seats), ...keep(state) } });
 }
 
 /** Gives every seat whose player left more than AWAY_SECONDS ago to a computer. Safe to call by anyone, any time. */
@@ -881,18 +950,18 @@ export async function reapAway(rawCode: string, token: string) {
   const now = Date.now();
   const due = (s: SeatEntry) => !s.isBot && !s.playerId && !!s.awaySince && now - s.awaySince >= AWAY_SECONDS * 1000;
   if (!state.seats.some(due)) return;
-  const seats = state.seats.map((s) => (due(s) ? { ...s, isBot: true, awaySince: null, name: `${s.name} (bot)` } : s));
+  const seats = state.seats.map((s) => (due(s) ? toComputer(s, state.quick) : s));
   try {
     if (state.patti) {
-      await saveRoom(store, room, { state: { ...pattiStored(state.patti, seats), gameId: state.gameId } });
+      await saveRoom(store, room, { state: { ...pattiStored(state.patti, seats), ...keep(state) } });
       return;
     }
     if (state.extra) {
-      await saveRoom(store, room, { state: { ...extraStored(state.extra, seats), gameId: state.gameId } });
+      await saveRoom(store, room, { state: { ...extraStored(state.extra, seats), ...keep(state) } });
       return;
     }
-    const game = runBots(state.game, (x) => seats[x].isBot);
-    await saveRoom(store, room, { state: { ...nextState(state.game, game, seats), gameId: state.gameId } });
+    const game = botsMove(state.game, seats);
+    await saveRoom(store, room, { state: { ...nextState(state.game, game, seats), ...keep(state) } });
     await payRungSeries(store, room.code, state.game, game, seats, state.gameId);
   } catch (e) {
     if (!(e instanceof RoomError && e.status === 409)) throw e; // someone else got there first
@@ -922,6 +991,39 @@ export async function leaveRoom(rawCode: string, token: string) {
   }, 5);
 }
 
+/**
+ * This player's phone is back at the table (reopened, reloaded, signal back) after the server had to move
+ * for them: their seat was always theirs (held by their token), and now they get their full clock again.
+ * Safe to repeat; does nothing for a player who wasn't marked as gone.
+ */
+export async function comeBack(rawCode: string, token: string) {
+  const store = await getStore();
+  const code = normaliseCode(rawCode);
+  await retrying(async () => {
+    const room = await loadRoom(store, code);
+    const me = await playerByToken(store, code, token);
+    const state = room.state;
+    if (room.status !== "playing" || !state) return;
+    const mine = state.seats.find((s) => s.playerId === me.id);
+    if (!mine?.dropped) return;
+    const seats = markDropped(state.seats, mine.seat, false);
+    // if it's their move right now, the short clock they were on starts again in full
+    const onMe = state.extra
+      ? extraPending(state.extra).includes(mine.seat)
+      : state.patti
+        ? pattiActor(state.patti) === mine.seat && !state.patti.result
+        : state.game.deal.turn === mine.seat && !state.game.deal.result;
+    const deadline = !onMe
+      ? (state.deadline ?? null)
+      : state.extra
+        ? extraDeadline(state.extra, seats)
+        : state.patti
+          ? pattiDeadline(state.patti, seats)
+          : turnDeadline(state.game, state.game, seats);
+    await saveRoom(store, room, { state: { ...state, seats, deadline } });
+  });
+}
+
 /** Frees a leaving player's seat at a running table (cashing out 3 Patti chips). Safe to repeat. */
 async function releaseSeat(store: RoomStore, room: RoomRow, me: PlayerRow) {
   const state = room.state!;
@@ -941,8 +1043,8 @@ async function releaseSeat(store: RoomStore, room: RoomRow, me: PlayerRow) {
     state: patti
       ? { ...state, patti, seats }
       : state.extra
-        ? { ...extraStored(state.extra, seats), gameId: state.gameId }
-        : { ...nextState(state.game, state.game, seats), gameId: state.gameId },
+        ? { ...extraStored(state.extra, seats), ...keep(state) }
+        : { ...nextState(state.game, state.game, seats), ...keep(state) },
   });
 }
 
@@ -990,4 +1092,278 @@ export async function sendChat(rawCode: string, token: string, body: { text?: un
   };
   await store.addChat(code, message);
   return message;
+}
+
+// ───────────── quick match ─────────────
+//
+// Play on a game's mode screen puts you at a quick-match table: an ordinary room the server fills for
+// you. People searching for the same game (and seat count) are put at the same table, oldest first; the
+// seats nobody takes are filled one by one, on a schedule fixed when the table opened, by computer players
+// with ordinary names and faces who play at a person's pace (and are never labelled). The phones poll
+// while it fills (pollQuick), and whichever poll finds every seat filled starts the game.
+//
+// No two phones can take the same seat (the store refuses it) and only one request can start the game
+// (versioned write), so matching needs no lock of its own.
+
+/** A table stops taking people this long after it opened (the last seats fill around then anyway). */
+const QUICK_JOIN_MS = 26_000;
+/** Every seat taken: the table waits this long before dealing, so the last arrival is seen. */
+const QUICK_START_MS = 1200;
+/** A phone that hasn't asked about a filling table for this long has gone. */
+const QUICK_STALE_MS = 10_000;
+// (how the seats fill over the ~30 s search: quickSchedule in ./personas, shared with the phone's offline search)
+
+const quickKey = (game: GameKind, players: number) => `${game}:${players}`;
+
+/** When the empty seats fill, one after another at a person's irregular pace, and who fills them. */
+function quickArrivals(n: number, openedAt: number): QuickMeta["arrivals"] {
+  return quickSchedule(n, openedAt);
+}
+
+const seatedOf = (players: PlayerRow[]) => players.filter((p) => p.seat !== null);
+
+/**
+ * Who sits where at a filling table at `now`: the people in their seats, and in the seats left, the
+ * scheduled players who have "arrived" so far (never more than there are seats left).
+ */
+function quickSeats(room: RoomRow, quick: QuickMeta, players: PlayerRow[], now: number) {
+  const seats = seatList(tableSeats(room.options));
+  const people = seatedOf(players);
+  const empty = seats.filter((s) => !people.some((p) => p.seat === s));
+  const arrived = quick.arrivals.filter((a) => a.at <= now).length;
+  const fill = quick.arrivals.slice(0, Math.min(arrived, empty.length));
+  return { seats, people, empty, fill };
+}
+
+/** When the game starts (server ms): once the last empty seat is due to be filled, plus a moment. */
+function quickStartAt(room: RoomRow, quick: QuickMeta, players: PlayerRow[]): number {
+  const { empty } = quickSeats(room, quick, players, 0);
+  const people = seatedOf(players);
+  const lastPerson = Math.max(quick.openedAt, ...people.map((p) => p.created_at));
+  const fullAt = empty.length === 0 ? lastPerson : Math.max(lastPerson, quick.arrivals[empty.length - 1].at);
+  return fullAt + QUICK_START_MS;
+}
+
+function matchView(room: RoomRow, quick: QuickMeta, players: PlayerRow[], myId: string): MatchView {
+  const now = Date.now();
+  const { seats, people, empty, fill } = quickSeats(room, quick, players, now);
+  const shown: MatchView["seats"] = seats.map((s) => {
+    const p = people.find((x) => x.seat === s);
+    if (p) return { name: p.name, avatar: p.avatar ?? avatarFor(p.name), isMe: p.id === myId };
+    const i = empty.indexOf(s);
+    const a = fill[i];
+    return a ? { name: a.name, avatar: a.avatar, isMe: false } : null;
+  });
+  const startAt = quickStartAt(room, quick, players);
+  const full = shown.every(Boolean);
+  return { game: room.options.game ?? "rung", seats: shown, startsIn: full ? Math.max(0, startAt - now) : null };
+}
+
+/** Play: sit down at a quick-match table for this game, joining people already waiting when there are some. */
+export async function joinQuick(rawGame: unknown, name: unknown, avatar?: unknown, wallet?: unknown): Promise<JoinResponse> {
+  if (!tablesAvailable()) throw new RoomError("Tables aren't available on this server", 503);
+  const store = await getStore();
+  const game: GameKind = isGameKind(rawGame) ? rawGame : "rung";
+  const players = seatsFor(game, undefined);
+  const key = quickKey(game, players);
+  const playerName = cleanName(name);
+  const look = cleanAvatar(avatar, playerName);
+  // no wallet yet, or not enough coins: you still play (for free, see startQuick)
+  const walletId = walletKeyOrNull(wallet) ?? undefined;
+  const now = Date.now();
+
+  for (const room of await store.findQuickRooms(key)) {
+    const quick = room.quick;
+    if (!quick || now - quick.openedAt > QUICK_JOIN_MS) continue;
+    const at = await store.listPlayers(room.code);
+    const { empty, fill } = quickSeats(room, quick, at, now + 500);
+    // a seat nobody has visibly filled yet
+    if (empty.length <= fill.length) continue;
+    const seat = empty[0];
+    const token = randomBytes(24).toString("base64url");
+    let me: PlayerRow;
+    try {
+      me = await store.insertPlayer({ room_code: room.code, name: playerName, seat, is_host: false, token, avatar: look, wallet: walletId });
+    } catch (e) {
+      if (e instanceof SeatTakenError) continue;
+      throw e;
+    }
+    await touch(store, room.code);
+    // the game may have started between our look and our seat: then this table isn't ours
+    const fresh = await store.getRoom(room.code);
+    if (fresh?.status === "lobby") return { code: room.code, token };
+    await store.deletePlayer(room.code, me.id);
+  }
+
+  // nobody waiting: open a new table
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const code = newCode();
+    const quick: QuickMeta = { key, openedAt: now, arrivals: quickArrivals(players - 1, now) };
+    if (!(await store.insertRoom({ code, options: cleanOptions({ game, players }), quick }))) continue;
+    const token = randomBytes(24).toString("base64url");
+    await store.insertPlayer({ room_code: code, name: playerName, seat: 0, is_host: false, token, avatar: look, wallet: walletId });
+    return { code, token };
+  }
+  throw new RoomError("Couldn't find a table, please try again", 500);
+}
+
+/**
+ * The search screen asks about its table (every second or two): this phone is still here, phones that
+ * stopped asking are dropped, and once every seat is filled the game starts. Returns this phone's view.
+ */
+export async function pollQuick(rawCode: string, token: string): Promise<RoomView> {
+  const store = await getStore();
+  const code = normaliseCode(rawCode);
+  const room = await loadRoom(store, code);
+  const me = await playerByToken(store, code, token);
+  if (room.status === "lobby" && room.quick) {
+    await store.seePlayer(code, me.id);
+    const now = Date.now();
+    const players = await store.listPlayers(code);
+    const gone = players.filter((p) => p.id !== me.id && now - (p.last_seen ?? p.created_at) > QUICK_STALE_MS);
+    for (const p of gone) await store.deletePlayer(code, p.id);
+    if (gone.length) await touch(store, code);
+    const here = players.filter((p) => !gone.includes(p));
+    if (now >= quickStartAt(room, room.quick, here)) {
+      try {
+        await retrying(() => startQuick(store, code));
+      } catch (e) {
+        if (!(e instanceof RoomError && e.status === 409)) throw e; // another phone is starting it
+      }
+    }
+  }
+  return getRoomView(code, token);
+}
+
+/** Deals a full quick-match table. Whoever can pay the table fee pays it; whoever can't plays for free. */
+async function startQuick(store: RoomStore, code: string) {
+  const room = await loadRoom(store, code);
+  if (room.status !== "lobby" || !room.quick) return;
+  const players = await store.listPlayers(code);
+  const { seats: table, people, empty } = quickSeats(room, room.quick, players, Number.POSITIVE_INFINITY);
+  const taken = people.map((p) => p.name);
+  const seats: SeatEntry[] = table.map((seat) => {
+    const p = people.find((x) => x.seat === seat);
+    if (p) return { seat, name: p.name, isBot: false, playerId: p.id, avatar: p.avatar ?? avatarFor(p.name) };
+    const a = room.quick!.arrivals[empty.indexOf(seat)];
+    // (a name that happens to match a person's is swapped for another)
+    const name = taken.some((t) => t.toLowerCase() === a.name.toLowerCase()) ? personaNames(1, taken)[0] : a.name;
+    taken.push(name);
+    return { seat, name, isBot: true, lifelike: true, playerId: null, avatar: a.avatar };
+  });
+
+  // Two phones may try to start the same table at once: they make the same game id (it names the room's
+  // version), so the coin charges below happen once between them, and only one of them saves the game.
+  const gameId = `q${code}-${room.quick.openedAt}-${room.version}`;
+  const kind = room.options.game ?? "rung";
+  const isPatti = kind === "patti";
+  const extraGame = isExtraGame(kind) ? kind : null;
+  const fee = feeFor(kind);
+  const paid: { key: string; once: string; seat: number }[] = [];
+  for (const w of walletsBySeat(seats, players)) {
+    const once = isPatti ? `${gameId}:in:${w.playerId}` : extraGame ? `${gameId}:fee:${w.key}` : `${gameId}:s1:fee:${w.key}`;
+    try {
+      await moveCoins(w.key, -fee, feeReason(room.options), once);
+      paid.push({ key: w.key, once, seat: w.seat });
+    } catch (e) {
+      if (!(e instanceof WalletError)) throw e;
+    }
+  }
+  // people with no wallet, or who couldn't pay, play for nothing
+  for (const s of seats) {
+    if (s.isBot) continue;
+    if (!paid.some((x) => x.seat === s.seat)) s.free = true;
+    else if (isPatti) s.buyIns = 1;
+  }
+
+  let state: StoredState;
+  if (isPatti) {
+    state = { ...pattiStored(startDeal(newTable(rulesFor(TABLES[0].boot), undefined, randomInt(4) as Seat)), seats), gameId, quick: true };
+  } else if (extraGame) {
+    state = { ...extraStored(newExtra(extraGame, seats.length), seats), gameId, quick: true };
+  } else {
+    state = { ...nextState(null, botsMove(newGame(room.options), seats), seats), gameId, quick: true };
+  }
+  try {
+    await saveRoom(store, room, { status: "playing", state });
+  } catch (e) {
+    // refund, unless the phone that beat us to it started this very game (with these same charges)
+    const now = await store.getRoom(code);
+    if (now?.state?.gameId !== gameId) {
+      for (const c of paid) await moveCoins(c.key, fee, "Refund: the game didn't start", `${c.once}:refund`);
+    }
+    throw e;
+  }
+  await banter(store, code, null, state);
+}
+
+// ───────────── quick match: the computer players' few words ─────────────
+
+/** Who says what after this change at a quick-match table, if anything (before: null at the start). */
+function banterFor(before: StoredState | null, after: StoredState): { seat: number; moment: BanterMoment } | null {
+  const bots = after.seats.filter((s) => s.isBot && s.lifelike);
+  if (!bots.length) return null;
+  const any = () => bots[Math.floor(Math.random() * bots.length)].seat;
+  const chance = (p: number) => Math.random() < p;
+  if (!before) return chance(0.8) ? { seat: any(), moment: "hello" } : null;
+
+  if (after.extra && before.extra) {
+    if (extraOver(after.extra) && !extraOver(before.extra)) return chance(0.75) ? { seat: any(), moment: "end" } : null;
+    // Bhabhi and G Patta: a computer player just got out of cards
+    const placed = (e: ExtraStored, s: number) =>
+      e.game === "bhabhi" ? e.state.place[s] != null : e.game === "gpatta" ? e.state.players[s]?.place != null : false;
+    const out = bots.find((b) => placed(after.extra!, b.seat) && !placed(before.extra!, b.seat));
+    if (out && chance(0.3)) return { seat: out.seat, moment: "win" };
+    return null;
+  }
+
+  if (after.patti && before.patti) {
+    const r = after.patti.result;
+    if (!r || before.patti.result) return null;
+    const big = r.pot >= after.patti.rules.boot * 12;
+    if (!chance(big ? 0.6 : 0.15)) return null;
+    const winner = bots.find((b) => r.winners.includes(b.seat as Seat));
+    if (winner) return { seat: winner.seat, moment: "win" };
+    // a person took it: someone else at the table reacts
+    return { seat: any(), moment: chance(0.5) ? "praise" : "loss" };
+  }
+
+  if (!after.patti && !after.extra) {
+    const g = after.game;
+    if (g.seriesWinner != null && before.game.seriesWinner == null) return chance(0.75) ? { seat: any(), moment: "end" } : null;
+    const r = g.deal.result;
+    if (!r || before.game.deal.result) return null;
+    if (r.winnerTeam === null || !chance(r.court ? 0.8 : 0.35)) return null;
+    const seat = any();
+    return { seat, moment: seat % 2 === r.winnerTeam ? "win" : chance(0.5) ? "loss" : "praise" };
+  }
+  return null;
+}
+
+/**
+ * Now and then a computer player at a quick-match table says something, like people do: hello at the
+ * start, a word after a big hand, gg at the end. Never more than one line every BANTER_GAP_MS, and a
+ * failure here never gets in the way of the move that caused it.
+ */
+async function banter(store: RoomStore, code: string, before: StoredState | null, after: StoredState) {
+  if (!after.quick) return;
+  try {
+    const say = banterFor(before, after);
+    if (!say) return;
+    const now = Date.now();
+    const recent = (await store.listChat(code)).some((m) => m.playerId.startsWith("bot:") && now - m.at < BANTER_GAP_MS);
+    if (recent) return;
+    const who = after.seats[say.seat];
+    const message: ChatMessage = {
+      id: randomUUID(),
+      at: now,
+      playerId: `bot:${say.seat}`,
+      name: who.name,
+      seat: who.seat,
+      ...banterLine(say.moment),
+    };
+    await store.addChat(code, message);
+  } catch (e) {
+    console.error("[baazi] banter failed", e);
+  }
 }

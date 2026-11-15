@@ -5,7 +5,7 @@
  */
 
 export type Vec = [number, number, number];
-export type LookId = "title" | "menu" | "select" | "play";
+export type LookId = "title" | "menu" | "play";
 
 export const TABLE_TOP = 0.78;
 export const TABLE_SCALE = 1.25;
@@ -14,8 +14,6 @@ export const TOP_HALF = 1.02;
 export const TOP_DEPTH = 1.27;
 export const TOP_CORNER = 0.32;
 export const SEAT_RADIUS = 1.95;
-/** Where the four regulars sit round the far side while you pick (radians from straight across). */
-export const SEAT_ANGLES = [-52, -18, 18, 52].map((d) => (d * Math.PI) / 180);
 /** Game seats round the table: you, right, partner, left. */
 export const PLAY_ANGLE = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
 export const seatDir = (seat: number): Vec => [Math.sin(PLAY_ANGLE[seat]), 0, -Math.cos(PLAY_ANGLE[seat])];
@@ -35,27 +33,14 @@ export interface Shot {
   fov: number;
   /** Fraction of the view the picture slides right (x) and up (y). */
   shift: [number, number];
+  /** Stretches the table depth (z) about the look point so a tall phone felt fills the band above the hand. */
+  depthK?: number;
 }
 
 /** Distance at which a W x H box fills the frame. */
 function fit(w: number, h: number, fov: number, aspect: number) {
   const t = 2 * Math.tan((fov * Math.PI) / 360);
   return Math.max(h / t, w / (t * aspect));
-}
-
-/** Seat height of the chairs, and the head of the one at each pick seat (Sal is a size bigger). */
-const BUST_BASE = 0.42;
-const HEAD_SCALE = [1, 1, 1.1, 1];
-
-/** The 3D app's close-up on one pick seat: the chosen figure, centred, from just above eye height. */
-function selectShot(i: number, aspect: number, short: boolean): Shot {
-  const tall = aspect < 0.9;
-  const a = SEAT_ANGLES[i];
-  const fov = tall ? 34 : 30;
-  const at: Vec = [SEAT_RADIUS * Math.sin(a), BUST_BASE + 0.84 * HEAD_SCALE[i] - 0.12, -SEAT_RADIUS * Math.cos(a)];
-  const dir = norm([-Math.sin(a), 0.16, Math.cos(a)]);
-  const d = fit(tall ? 2.0 : 2.1, short ? 1.35 : 1.7, fov, aspect);
-  return { pos: along(at, dir, d), look: at, fov, shift: tall ? [0, 0.13] : [0, short ? 0.04 : 0.1] };
 }
 
 /**
@@ -67,7 +52,8 @@ function selectShot(i: number, aspect: number, short: boolean): Shot {
 function wideTableShot(aspect: number, short: boolean): Shot {
   const fov = short ? 44 : 40;
   const t = Math.tan((fov * Math.PI) / 360);
-  const dir = norm([0, short ? 1.05 : 1.2, 1]);
+  // steep enough that the felt stands tall on the screen (more room for the cards dealt across)
+  const dir = norm([0, short ? 1.25 : 1.45, 1]);
   const at: Vec = [0, TABLE_TOP, 0.15];
   const head: Vec = [0, 2.02, -SEAT_RADIUS];
   const rimX = (TOP_HALF + 0.08) * TABLE_SCALE;
@@ -112,36 +98,16 @@ function wideTableShot(aspect: number, short: boolean): Shot {
   return { pos: along(at, dir, hi), look: at, fov, shift: [0, headY - top] };
 }
 
-const mix = (a: number, b: number, k: number) => a + (b - a) * k;
-const mixV = (a: Vec, b: Vec, k: number): Vec => [mix(a[0], b[0], k), mix(a[1], b[1], k), mix(a[2], b[2], k)];
-
-/**
- * The 3D app's camera shots. Picking a character frames the chosen seat; a fractional focus is the
- * camera on its way from one seat to the next.
- */
-export function shotFor(look: LookId, aspect: number, short: boolean, focus = 0): Shot {
+/** The 3D app's camera shots. */
+export function shotFor(look: LookId, aspect: number, short: boolean): Shot {
   const tall = aspect < 0.9;
-  if (look === "select") {
-    const f = Math.min(3, Math.max(0, focus));
-    const i = Math.floor(f);
-    const a = selectShot(i, aspect, short);
-    if (f === i) return a;
-    const b = selectShot(i + 1, aspect, short);
-    const k = f - i;
-    return {
-      pos: mixV(a.pos, b.pos, k),
-      look: mixV(a.look, b.look, k),
-      fov: mix(a.fov, b.fov, k),
-      shift: [mix(a.shift[0], b.shift[0], k), mix(a.shift[1], b.shift[1], k)],
-    };
-  }
   if (look === "play") {
     if (!tall || aspect > 0.6) return wideTableShot(aspect, short);
     const fov = tall ? 52 : 42;
     const at: Vec = [0, tall ? 0.8 : 0.88, tall ? 0.1 : -0.05];
     const dir = norm([0, tall ? 2.3 : 0.85, 1]);
     const d = fit(tall ? 2.38 : 3.6, short ? 1.85 : 2.1, fov, aspect);
-    return { pos: along(at, dir, d), look: at, fov, shift: [0, tall ? 0.03 : short ? 0.12 : 0.08] };
+    return { pos: along(at, dir, d), look: at, fov, shift: [0, tall ? 0.03 : short ? 0.12 : 0.08], depthK: tall ? 1.1 : undefined };
   }
   if (look === "menu") {
     if (tall) {
@@ -172,15 +138,16 @@ export interface View {
   pc: (p: Vec) => [number, number];
 }
 
-export function makeView(look: LookId, w: number, h: number, focus = 0): View {
+export function makeView(look: LookId, w: number, h: number): View {
   const aspect = w / Math.max(h, 1);
-  const shot = shotFor(look, aspect, h < 560, focus);
+  const shot = shotFor(look, aspect, h < 560);
   const f = norm(sub(shot.look, shot.pos));
   const r = norm(cross(f, [0, 1, 0]));
   const u = cross(r, f);
   const t = Math.tan((shot.fov * Math.PI) / 360);
+  const k = shot.depthK ?? 1;
   const px = (p: Vec): [number, number] => {
-    const d = sub(p, shot.pos);
+    const d = sub(k === 1 ? p : [p[0], p[1], shot.look[2] + (p[2] - shot.look[2]) * k], shot.pos);
     const z = Math.max(dot(d, f), 0.01);
     const nx = dot(d, r) / (z * t * aspect);
     const ny = dot(d, u) / (z * t);

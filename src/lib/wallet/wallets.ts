@@ -4,12 +4,18 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
+  type CardBackId,
+  DEFAULT_BACK,
+  DEFAULT_TABLE,
+  type TableThemeId,
   type GameKind,
   type LedgerEntry,
   PATTI_BUYIN,
   START_COINS,
   type WalletView,
+  cardBackById,
   isGameKind,
+  tableThemeById,
   packById,
 } from "./economy";
 
@@ -47,6 +53,10 @@ interface Wallet {
   /** Charges and payouts already made, by idempotency key (so a retry never pays or charges twice). */
   done: Record<string, number>;
   solo: Record<string, SoloSession>;
+  /** Card backs bought with coins (older wallets have none yet; the free one is never stored). */
+  backs?: CardBackId[];
+  /** Table themes bought with coins (same as backs: the free one is never stored). */
+  tables?: TableThemeId[];
 }
 
 interface Db {
@@ -177,8 +187,16 @@ export function newWalletToken(): string {
   return randomBytes(24).toString("base64url");
 }
 
+function ownedBacks(w: Wallet): CardBackId[] {
+  return [DEFAULT_BACK, ...(w.backs ?? []).filter((b) => b !== DEFAULT_BACK && cardBackById(b))];
+}
+
+function ownedTables(w: Wallet): TableThemeId[] {
+  return [DEFAULT_TABLE, ...(w.tables ?? []).filter((t) => t !== DEFAULT_TABLE && tableThemeById(t))];
+}
+
 function view(w: Wallet): WalletView {
-  return { coins: w.coins, ledger: w.ledger.slice(0, LEDGER_MAX) };
+  return { coins: w.coins, ledger: w.ledger.slice(0, LEDGER_MAX), backs: ownedBacks(w), tables: ownedTables(w) };
 }
 
 export async function getWallet(key: string): Promise<WalletView> {
@@ -261,6 +279,35 @@ export async function buyPack(key: string, packId: unknown, purchaseId: unknown)
   const once = typeof purchaseId === "string" && /^[A-Za-z0-9-]{8,64}$/.test(purchaseId) ? `buy:${purchaseId}` : undefined;
   await move(key, pack.coins + pack.bonus, `${pack.name} pack`, once);
   return getWallet(key);
+}
+
+/**
+ * Buys a card back with coins (in-game coins only, never real money). The price comes from the server's
+ * own list; owning it already is a no-op, so a retried request never charges twice.
+ */
+export async function buyBack(key: string, backId: unknown): Promise<WalletView> {
+  const back = cardBackById(backId);
+  if (!back) throw new WalletError("That card back isn't in the shop");
+  return tx(key, (w) => {
+    if (back.price <= 0 || ownedBacks(w).includes(back.id)) return view(w);
+    if (w.coins < back.price) throw notEnough(back.price, w.coins);
+    record(w, -back.price, `Card back: ${back.name}`);
+    w.backs = [...(w.backs ?? []), back.id];
+    return view(w);
+  });
+}
+
+/** Buys a table theme with coins, at the server's own price (owning it already is a no-op). */
+export async function buyTable(key: string, tableId: unknown): Promise<WalletView> {
+  const table = tableThemeById(tableId);
+  if (!table) throw new WalletError("That table isn't in the shop");
+  return tx(key, (w) => {
+    if (table.price <= 0 || ownedTables(w).includes(table.id)) return view(w);
+    if (w.coins < table.price) throw notEnough(table.price, w.coins);
+    record(w, -table.price, `Table: ${table.name}`);
+    w.tables = [...(w.tables ?? []), table.id];
+    return view(w);
+  });
 }
 
 // ───────────── games against the computer ─────────────

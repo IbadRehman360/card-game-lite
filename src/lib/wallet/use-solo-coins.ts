@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GameKind, Outcome } from "./economy";
 import { CoinError, openShop, openSolo, settleOnExit, soloSettle } from "./client";
+import { recordGame } from "../stats";
 
 export interface SoloCoins {
   /** What one game costs. Always 0: playing against the computer is free. */
@@ -32,6 +33,12 @@ export function useSoloCoins(game: GameKind): SoloCoins {
       setPaid(null);
       return true;
     } catch (e) {
+      // no signal: the game is free anyway, so play it on this phone without a session
+      if (e instanceof CoinError && e.status === 0) {
+        session.current = null;
+        setPaid(null);
+        return true;
+      }
       if (e instanceof CoinError) openShop({ need: e.short, message: e.message });
       else openShop({ message: "Couldn't reach the game server" });
       return false;
@@ -42,10 +49,12 @@ export function useSoloCoins(game: GameKind): SoloCoins {
     const id = session.current;
     if (!id) return;
     session.current = null;
+    // local stats for the profile: a win, or out first in Bhabhi / G Patta
+    recordGame(game, outcome.won === true || outcome.place === 1);
     soloSettle(id, outcome)
       .then((r) => setPaid(r.paid))
       .catch(() => setPaid(0));
-  }, []);
+  }, [game]);
 
   const forfeit = useCallback(() => {
     const id = session.current;

@@ -8,7 +8,8 @@ import { payoutFor } from "@/lib/wallet/economy";
 import { sfx } from "@/lib/sfx";
 import { CardFace, cardName } from "@/components/game/playing-card";
 import { WinFlare } from "@/components/game/win-flare";
-import { Portrait } from "@/components/game/portrait";
+import { Portrait, SeatCount, SeatStat } from "@/components/game/portrait";
+import { Avatar } from "@/components/avatars/avatar";
 import { seatTags } from "@/components/stage/anchors";
 import { CostTag } from "@/components/shop/cost-tag";
 import { BHABHI_TURN_SECONDS, type BhabhiGame } from "./use-bhabhi";
@@ -195,9 +196,10 @@ export function BhabhiScreen({
                   {ORDINAL[place]}
                 </i>
               )}
+              {place === null && !isBhabhi && <SeatCount n={state.hands[s].length} />}
             </span>
             <span className="seat-name">{name}</span>
-            <span className="seat-cards">{isBhabhi ? "Bhabhi" : place !== null ? "Got away" : `${state.hands[s].length} cards`}</span>
+            {isBhabhi && <SeatStat tone="bad">Bhabhi</SeatStat>}
             {bubble && (
               <span className="bh-bubble" data-tone={bubble.tone} key={bubble.key}>
                 {bubble.text}
@@ -387,6 +389,7 @@ export function BhabhiScreen({
               {state.order.map((s) => (
                 <li key={s} data-me={s === 0}>
                   <span>{ORDINAL[state.place[s]!]}</span>
+                  <Avatar id={people[s]?.c.id} className="result-pfp" />
                   {nameOf(s)}
                 </li>
               ))}

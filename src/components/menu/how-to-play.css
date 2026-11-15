@@ -1,0 +1,112 @@
+/* ─── how to play: the shop's tabs, one short line, then 4–5 one-line steps ───
+   The sheet body (menu.css .sheet-body) scrolls; nothing here clips. */
+
+/* the tabs are shop.css .shop-tabs; the shop sets their ink and outline on .shop, so set them here too */
+.htp-tabs {
+  --ink: #2b1704;
+  --outline:
+    -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink), 2px 2px 0 var(--ink),
+    0 -2px 0 var(--ink), 0 2px 0 var(--ink), -2px 0 0 var(--ink), 2px 0 0 var(--ink), 0 4px 0 var(--ink);
+  max-width: 520px;
+  margin: 0 auto 16px;
+  padding: 2px 2px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  font-family: var(--font-oswald), sans-serif;
+}
+.htp-tabs::-webkit-scrollbar {
+  display: none;
+}
+.htp-tabs {
+  gap: 8px;
+}
+/* bigger than the shop's phone size: these are the main control of the sheet */
+:root .shop-tabs.htp-tabs button {
+  flex: none;
+  white-space: nowrap;
+  padding: 6px 18px 8px;
+  font-size: 17px;
+}
+
+.htp {
+  max-width: 520px;
+  margin: 0 auto;
+  font-family: var(--font-oswald), sans-serif;
+  color: rgba(244, 236, 216, 0.88);
+}
+.htp .hl {
+  font-weight: 700;
+  color: #f2c14e;
+}
+.htp-intro {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(244, 236, 216, 0.6);
+}
+.htp-steps {
+  list-style: none;
+  counter-reset: htp;
+  margin: 0;
+  padding: 0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #2f2116, #261a11);
+  border: 1px solid rgba(184, 118, 42, 0.4);
+}
+.htp-step {
+  counter-increment: htp;
+  position: relative;
+  padding: 15px 14px 15px 46px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: break-word;
+}
+.htp-step + .htp-step {
+  border-top: 1px solid rgba(244, 236, 216, 0.07);
+}
+/* the marker: a gold diamond suit sign (text variant, not the emoji) */
+.htp-step::before {
+  content: "\2666\FE0E";
+  position: absolute;
+  left: 16px;
+  top: 15px;
+  width: 18px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  font: 15px/1 "Segoe UI Symbol", "Apple Symbols", sans-serif;
+  color: #f2c14e;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+}
+/* cycle through the four suits so the list reads like a hand of cards */
+.htp-step:nth-child(4n + 1)::before {
+  content: "\2660\FE0E";
+  color: #f4ecd8;
+}
+.htp-step:nth-child(4n + 2)::before {
+  content: "\2665\FE0E";
+  color: #e2574c;
+}
+.htp-step:nth-child(4n + 3)::before {
+  content: "\2663\FE0E";
+  color: #f4ecd8;
+}
+.htp-step:nth-child(4n + 4)::before {
+  content: "\2666\FE0E";
+  color: #e2574c;
+}
+.htp-title {
+  margin-right: 6px;
+  font-weight: 700;
+  color: #fff6e2;
+}
+.htp-coins {
+  margin: 14px 0 2px;
+  text-align: center;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(244, 236, 216, 0.55);
+}

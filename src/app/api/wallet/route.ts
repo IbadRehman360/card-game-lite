@@ -4,7 +4,9 @@ import { clientId, limit, readJson } from "@/lib/online/guard";
 import { WALLET_HEADER } from "@/lib/wallet/economy";
 import {
   WalletError,
+  buyBack,
   buyPack,
+  buyTable,
   getWallet,
   newWalletToken,
   openSolo,
@@ -36,6 +38,10 @@ export async function POST(req: NextRequest) {
     switch (body.action) {
       case "buy":
         return { wallet: await buyPack(key, body.pack, body.purchase) };
+      case "buyBack":
+        return { wallet: await buyBack(key, body.back) };
+      case "buyTable":
+        return { wallet: await buyTable(key, body.table) };
       case "open":
         return await openSolo(key, body.game, body.startChips);
       case "rebuy":

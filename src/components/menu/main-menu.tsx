@@ -34,27 +34,37 @@ import type { PattiStageTable } from "@/components/stage/patti-table";
 import {
   createRoom,
   forgetToken,
+  joinQuick,
   joinRoom,
+  leaveTableRequest,
+  peekRoom,
   readToken,
   saveToken,
   useOnlineGame,
   useOnlineRoom,
 } from "@/components/game/use-online-room";
 import { turnSeat } from "@/lib/online/perspective";
+import { personaNames, quickSchedule } from "@/lib/online/personas";
+import { AUTO_REJOIN_MS, type ActiveTable, clearActive, readActive, saveActive } from "@/lib/online/rejoin";
+import type { MatchView } from "@/lib/online/types";
+import { RejoinBanner, TableLoader } from "./table-status";
 import { TABLES } from "@/lib/patti/engine";
 import type { GameOptions } from "@/lib/game/engine";
 import { seatsFor, type TableGame } from "@/lib/game/table-games";
 import { CoinError, ensureWallet, openShop, openSolo, refreshWallet, settleOnExit, soloSettle, useWallet } from "@/lib/wallet/client";
 import { ShopOverlay } from "@/components/shop/shop";
+import { useApplyCardStyle } from "@/lib/card-style";
 import { CoinPill } from "@/components/shop/coin-pill";
 import { LobbyScreen } from "./lobby-screen";
+import { MatchScreen } from "./match-screen";
 import { ErrorNote, friendlyError } from "./error-note";
 import "@/components/game/game.css";
-import { CharacterSelect } from "./character-select";
 import { type MenuAction, MenuScreen } from "./menu-screen";
 import { CODE_LENGTH, type Mode, cleanCode, hostFee, isExtraId } from "./modes";
 import { MultiplayerPanel, RulesPanel, SettingsPanel } from "./panels";
 import { Sheet } from "./sheet";
+import { ProfileButton, ProfileScreen } from "./profile";
+import { recordGame } from "@/lib/stats";
 import { TitleScreen } from "./title-screen";
 import "./menu.css";
 
@@ -112,7 +122,26 @@ export function MainMenu() {
   const [online, setOnline] = useState<{ code: string; token: string } | null>(null);
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
-  const [focus, setFocus] = useState(0);
+  // Play: the game a quick match is being found for (null: not searching)
+  const [matching, setMatching] = useState<TableGame | null>(null);
+  // Play with no server to be had: the search runs on this phone, its seats filling on the same ~30 s
+  // schedule as a real one, and then the game is played here
+  const [localSearch, setLocalSearch] = useState<{ game: TableGame; arrivals: { at: number; name: string; avatar: string }[] } | null>(null);
+  const [clock, setClock] = useState(0);
+  // A table this phone left mid-game (closed, reloaded, lost signal) that is still going: offered back
+  const [rejoin, setRejoin] = useState<ActiveTable | null>(null);
+  const [rejoinBusy, setRejoinBusy] = useState(false);
+  const [rejoining, setRejoining] = useState(false);
+  // A game on this phone (Play with no signal): the other seats' names, so they look like people too
+  const [localNames, setLocalNames] = useState<string[] | null>(null);
+  const localBots = useMemo(() => (localNames ? localNames.map(() => false) : undefined), [localNames]);
+  const [pickedFocus, setPickedFocus] = useState(0);
+  // the character you play as: the one saved in prefs once picked (then Play skips "Who's playing?")
+  const savedFocus = CHARACTERS.findIndex((c) => c.id === prefs.character);
+  const characterChosen = savedFocus >= 0;
+  const focus = characterChosen ? savedFocus : pickedFocus;
+  // The profile screen: on the way into a game (a button there goes on to it), or opened just to look
+  const [picking, setPicking] = useState(false);
   const [sheet, setSheet] = useState<SheetId>(null);
   const [stageReady, setStageReady] = useState(false);
   const timer = useRef<number | undefined>(undefined);
@@ -160,6 +189,8 @@ export function MainMenu() {
   const gpattaChars = online && gpattaNet ? gpattaNet.seatChars : soloChars;
   // Coins: a Rung match against the computer is paid for when it starts and pays out when it's won.
   const wallet = useWallet();
+  // the card back and suit colours picked in Card style, on every card in the app
+  useApplyCardStyle();
   const rungSession = useRef<string | null>(null);
   const coinError = useCallback((e: unknown) => {
     if (e instanceof CoinError && e.status !== 0) openShop({ need: e.short, message: e.message });
@@ -179,6 +210,11 @@ export function MainMenu() {
       rungSession.current = (await openSolo("rung")).session;
       return true;
     } catch (e) {
+      // no signal: the game is on this phone and free, so just play it
+      if (e instanceof CoinError && e.status === 0) {
+        rungSession.current = null;
+        return true;
+      }
       coinError(e);
       return false;
     }
@@ -202,6 +238,7 @@ export function MainMenu() {
     if (!soloOver || !rungSession.current) return;
     const id = rungSession.current;
     rungSession.current = null;
+    recordGame("rung", soloSeries === 0);
     void soloSettle(id, { won: soloSeries === 0 }).catch(() => {});
   }, [soloOver, soloSeries]);
   // closing the app mid-match forfeits it (the server settles it when the next game starts)
@@ -258,6 +295,7 @@ export function MainMenu() {
             messages: net.chat.map((m) => ({
               ...m,
               seat: m.seat === null || mySeat === null ? null : turnSeat(m.seat, mySeat),
+              avatar: room.lobby.find((s) => s.playerId === m.playerId)?.avatar ?? undefined,
             })),
           }
         : undefined,
@@ -295,15 +333,16 @@ export function MainMenu() {
     return () => window.clearTimeout(t);
   }, [net.gone, scene, leaving, go]);
 
-  const toSelect = useCallback(
-    (m: Mode) => {
-      setMode(m);
-      const saved = CHARACTERS.findIndex((c) => c.id === prefs.character);
-      setFocus(saved >= 0 ? saved : 0);
-      go("select");
-    },
-    [go, prefs.character],
-  );
+  const openProfile = useCallback(() => {
+    setPicking(false);
+    go("profile");
+  }, [go]);
+
+  // picking a character on the profile screen saves it straight away
+  const pickCharacter = useCallback((i: number) => {
+    setPickedFocus(i);
+    setPrefs({ character: CHARACTERS[i].id });
+  }, []);
 
   const enter = () => {
     unlockAudio();
@@ -328,9 +367,92 @@ export function MainMenu() {
     return () => window.clearTimeout(t);
   }, [online, status, scene, leaving, go]);
 
+  // Remember the table while this phone has a seat at it, so a reload or a closed app can come back to it;
+  // forget it when the game is over, the seat is gone, or the table is.
+  const seated = !!room && (room.status === "playing" ? !room.spectating && !room.finished : !room.match);
+  const roomGame = room?.options.game ?? "rung";
+  const roomQuick = !!room?.quick;
+  const roomVersion = room?.version ?? -1;
+  useEffect(() => {
+    if (!online || roomVersion < 0) return;
+    if (seated) saveActive({ code: online.code, token: online.token, game: roomGame, quick: roomQuick });
+    else clearActive(online.code);
+  }, [online, roomVersion, seated, roomGame, roomQuick]);
+  useEffect(() => {
+    if (net.gone && online) clearActive(online.code);
+  }, [net.gone, online]);
+  // the moment the app closes is the moment it may come straight back from
+  useEffect(() => {
+    if (!online || !seated) return;
+    const bye = () => saveActive({ code: online.code, token: online.token, game: roomGame, quick: roomQuick });
+    window.addEventListener("pagehide", bye);
+    return () => window.removeEventListener("pagehide", bye);
+  }, [online, seated, roomGame, roomQuick]);
+
+  /** Back to a table this phone has a seat at (same token, so the same seat). */
+  const resume = useCallback(
+    (t: ActiveTable) => {
+      setRejoin(null);
+      setRejoining(true);
+      setMatching(null);
+      setLocalSearch(null);
+      setJoinError(null);
+      setJoining(false);
+      saveToken(t.code, t.token);
+      setOnline({ code: t.code, token: t.token });
+      if (!t.quick) window.history.replaceState(null, "", `/?table=${t.code}`);
+      go("menu");
+    },
+    [go],
+  );
+
+  // On opening the app: a table this phone left that's still going? Straight back to it after a reload or
+  // a quick drop; otherwise ask.
+  useEffect(() => {
+    const saved = readActive();
+    if (!saved) return;
+    let stop = false;
+    peekRoom(saved.code, saved.token)
+      .then((view) => {
+        if (stop) return;
+        const going = view.status === "playing" ? !view.spectating && !view.finished : !view.match;
+        if (!going) return clearActive(saved.code);
+        const t = { ...saved, game: view.options.game ?? saved.game, quick: view.quick };
+        if (Date.now() - saved.at < AUTO_REJOIN_MS) resume(t);
+        else setRejoin(t);
+      })
+      .catch((e: { status?: number }) => {
+        if (stop || (e.status !== 403 && e.status !== 404)) return;
+        clearActive(saved.code);
+        forgetToken(saved.code);
+      });
+    return () => {
+      stop = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the app opens
+  }, []);
+
+  /** Leave on the rejoin prompt: give the seat up (a computer takes it) and forget the table. */
+  const dropRejoin = () => {
+    const t = rejoin;
+    if (!t) return;
+    setRejoinBusy(true);
+    void leaveTableRequest(t.code, t.token)
+      .catch(() => {})
+      .finally(() => {
+        clearActive(t.code);
+        forgetToken(t.code);
+        setRejoin(null);
+        setRejoinBusy(false);
+      });
+  };
+
   const sitDown = async (m: Mode) => {
     const character = CHARACTERS[focus];
     const name = (prefs.name || character.name).slice(0, 16);
+    // a new table instead of the one offered back: that seat is given up
+    if (rejoin) dropRejoin();
+    setRejoining(false);
     setJoining(true);
     setJoinError(null);
     go("menu");
@@ -356,6 +478,121 @@ export function MainMenu() {
     }
   };
 
+  /**
+   * Play with no table to be had (no signal, or a server without tables): the same game on this phone,
+   * with the other seats named like people, as they would be at a quick match.
+   */
+  const playLocal = (g: TableGame, names: string[] = []) => {
+    setMatching(null);
+    setLocalSearch(null);
+    setJoining(false);
+    setJoinError(null);
+    setLocalNames(["", ...names, ...personaNames(Math.max(0, 5 - names.length), [...names, ...(prefs.name ? [prefs.name] : [])])]);
+    const started = (ok: boolean | void) => {
+      if (ok !== false) go("play");
+      else go("menu");
+    };
+    if (g === "patti") {
+      setMode({ kind: "patti", table: TABLES[0].id });
+      void Promise.resolve(pattiSolo.start(TABLES[0].id)).then(started);
+    } else if (isExtraId(g)) {
+      setMode({ kind: "solo", game: g });
+      const starting = g === "bluff" ? bluff.start() : g === "bhabhi" ? bhabhi.start(4) : g === "gpatta" ? gpatta.start(4) : undefined;
+      void Promise.resolve(starting).then(started);
+    } else {
+      setMode({ kind: "practice" });
+      void payRung().then((ok) => {
+        if (ok) solo.restart();
+        started(ok);
+      });
+    }
+  };
+
+  /** Play: find a quick-match table for this game (or, failing that, play it on this phone). */
+  const findMatch = async (g: TableGame) => {
+    const character = CHARACTERS[focus];
+    const name = (prefs.name || character.name).slice(0, 16);
+    if (rejoin) dropRejoin();
+    setRejoining(false);
+    setMatching(g);
+    setJoining(true);
+    setJoinError(null);
+    go("menu");
+    try {
+      // without a wallet you still play (for free); with no signal the join below fails too
+      await ensureWallet().catch(() => {});
+      const res = await joinQuick(g, name, character.id);
+      saveToken(res.code, res.token);
+      setOnline(res);
+    } catch (e) {
+      const err = e as Error & { status?: number };
+      // no server to search on (no signal, or tables unavailable): search on this phone, at the same pace
+      if (!err.status || err.status >= 500) searchLocal(g);
+      else {
+        setMatching(null);
+        setJoinError(err.message);
+      }
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  /**
+   * The search, on this phone: the seats fill one by one over the same ~30 s as a real search (never
+   * a game dealt in a few seconds), with the faces the local game will show, and then it is played here.
+   */
+  const searchLocal = (g: TableGame) => {
+    const openedAt = Date.now();
+    const arrivals = quickSchedule(seatsFor(g, undefined) - 1, openedAt, prefs.name ? [prefs.name] : []).map((a, i) => ({
+      ...a,
+      avatar: CHARACTERS[soloChars[i + 1] ?? 0]?.id ?? a.avatar,
+    }));
+    setOnline(null);
+    setJoining(false);
+    setJoinError(null);
+    setMatching(g);
+    setLocalSearch({ game: g, arrivals });
+  };
+  useEffect(() => {
+    if (!localSearch) return;
+    const tick = window.setInterval(() => setClock(Date.now()), 500);
+    const last = localSearch.arrivals.reduce((m, a) => Math.max(m, a.at), 0);
+    const done = window.setTimeout(
+      () => playLocal(localSearch.game, localSearch.arrivals.map((a) => a.name)),
+      Math.max(0, last + 1200 - Date.now()),
+    );
+    return () => {
+      window.clearInterval(tick);
+      window.clearTimeout(done);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per search
+  }, [localSearch]);
+  const localMatch: MatchView | null = localSearch
+    ? {
+        game: localSearch.game,
+        seats: [
+          { name: (prefs.name || CHARACTERS[focus].name).slice(0, 16), avatar: CHARACTERS[focus].id, isMe: true },
+          ...localSearch.arrivals.map((a) => (a.at <= clock ? { name: a.name, avatar: a.avatar, isMe: false } : null)),
+        ],
+        startsIn: localSearch.arrivals.every((a) => a.at <= clock) ? 1200 : null,
+      }
+    : null;
+
+  // The search lost the server half way: search on this phone instead.
+  const matchLost = net.matchLost;
+  const lostGame = matchLost ? (matching ?? menuGame) : null;
+  useEffect(() => {
+    if (!lostGame || !online) return;
+    const t = window.setTimeout(() => {
+      void net.act("leave");
+      forgetToken(online.code);
+      setOnline(null);
+      searchLocal(lostGame);
+    }, 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per lost search
+  }, [lostGame]);
+
   /** Back to the menu from a game against the computer (3 Patti chips are cashed out). */
   const leaveSolo = () => {
     if (isPatti) pattiSolo.leave?.();
@@ -376,23 +613,79 @@ export function MainMenu() {
     if (online) {
       void net.act("leave");
       forgetToken(online.code);
+      clearActive(online.code);
     }
     setOnline(null);
     setJoinError(null);
+    setMatching(null);
+    setLocalSearch(null);
+    setRejoining(false);
     window.history.replaceState(null, "", "/");
     go("menu");
   };
 
+  /** Goes on into the game a mode asks for, as the character picked. */
+  const launch = (m: Mode) => {
+    if (m.kind === "quick") {
+      void findMatch(m.game);
+      return;
+    }
+    if (m.kind === "solo") {
+      const starting = m.game === "bluff" ? bluff.start() : m.game === "bhabhi" ? bhabhi.start(4) : m.game === "gpatta" ? gpatta.start(4) : undefined;
+      void Promise.resolve(starting).then((ok) => {
+        if (ok !== false) go("play");
+      });
+      return;
+    }
+    if (m.kind === "patti") {
+      void Promise.resolve(pattiSolo.start(m.table)).then((ok) => {
+        if (ok !== false) go("play");
+      });
+      return;
+    }
+    if (m.kind !== "practice") {
+      void sitDown(m);
+      return;
+    }
+    void payRung().then((ok) => {
+      if (!ok) return;
+      solo.restart();
+      go("play");
+    });
+  };
+
+  /**
+   * On the way into a game: a player who has picked their character goes straight on as them; one who
+   * hasn't is asked once ("Who's playing?"). The profile is otherwise only opened from the avatar button.
+   */
+  const toSelect = (m: Mode) => {
+    setMode(m);
+    if (characterChosen) {
+      launch(m);
+      return;
+    }
+    setPickedFocus(0);
+    setPicking(true);
+    go("profile");
+  };
+
   const onStageReady = useCallback(() => setStageReady(true), []);
 
+  // the table shade: dark behind the lobby, light while the table is set up so the room stays in view
+  const tableShade: "false" | "true" | "loading" =
+    scene !== "menu" || (online === null && !joining && joinError === null && !localSearch)
+      ? "false"
+      : !joinError && !net.error && !matching && !localSearch && !(room && room.status === "lobby")
+        ? "loading"
+        : "true";
+
   return (
-    <div className="room" data-scene={scene} data-lobby={scene === "menu" && (online !== null || joining || joinError !== null)}>
+    <div className="room" data-scene={scene} data-lobby={tableShade}>
       <div className="stage" data-ready={stageReady} aria-hidden>
         <TavernStage
           // on phones the title screen shares the mode screen's view of the room (bear, lamp, table);
           // wide screens keep the centred title view, since their menu view leaves room on the left
           scene={scene === "title" && portrait ? "menu" : scene}
-          focus={focus}
           table={table}
           patti={pattiTable}
           bluff={bluffTable}
@@ -445,16 +738,34 @@ export function MainMenu() {
       )}
 
       {/* coins show on the menus only; at a table the corner is just pause and sound */}
-      {(scene === "menu" || scene === "select") && !leaving && (
+      {scene === "menu" && !leaving && (
         <div className="coin-corner" data-scene={scene}>
+          <ProfileButton onOpen={openProfile} />
           <CoinPill />
         </div>
       )}
 
       <main className="screen" data-leaving={leaving}>
         {scene === "title" && <TitleScreen onEnter={enter} />}
-        {scene === "menu" && (online || joining || joinError) && (
-          room ? (
+        {rejoin && !online && !joining && !localSearch && (scene === "title" || scene === "menu") && !leaving && (
+          <RejoinBanner
+            game={rejoin.game}
+            busy={rejoinBusy}
+            onRejoin={() => {
+              unlockAudio();
+              sfx.confirm();
+              resume(rejoin);
+            }}
+            onLeave={dropRejoin}
+          />
+        )}
+        {scene === "menu" && localSearch && (
+          <MatchScreen game={localSearch.game} match={localMatch} onCancel={leaveTable} />
+        )}
+        {scene === "menu" && !localSearch && (online || joining || joinError) && (
+          (room?.quick && room.status === "lobby") || (!room && matching && !joinError) ? (
+            <MatchScreen game={(room?.options.game ?? matching ?? "rung") as TableGame} match={room?.match ?? null} onCancel={leaveTable} />
+          ) : room && room.status === "lobby" ? (
             <LobbyScreen
               room={room}
               pending={net.pending}
@@ -463,7 +774,7 @@ export function MainMenu() {
               act={net.act}
               onLeave={leaveTable}
             />
-          ) : (
+          ) : joinError || net.error ? (
             <div className="lobby lobby-loading">
               {joinError || net.error ? (
                 <>
@@ -485,13 +796,13 @@ export function MainMenu() {
                     </button>
                   )}
                 </>
-              ) : (
-                <p className="lobby-wait">Finding the table…</p>
-              )}
+              ) : null}
             </div>
+          ) : (
+            <TableLoader title={rejoining ? "Taking your seat back…" : "Setting up your table…"} />
           )
         )}
-        {scene === "menu" && !online && !joining && !joinError && (
+        {scene === "menu" && !online && !joining && !joinError && !localSearch && (
           <MenuScreen
             onPick={onPick}
             game={menuGame}
@@ -500,51 +811,29 @@ export function MainMenu() {
               // hosting an online table still costs coins; playing the computer doesn't
               if (!short(hostFee(g))) toSelect({ kind: "host", game: g, ...options });
             }}
-            onPlay={(g) => {
-              if (g === "patti") toSelect({ kind: "patti", table: TABLES[0].id });
-              else if (isExtraId(g)) toSelect({ kind: "solo", game: g });
-              else toSelect({ kind: "practice" });
-            }}
+            onPlay={(g) => toSelect({ kind: "quick", game: g })}
             onJoin={(code) => toSelect({ kind: "join", code })}
           />
         )}
-        {scene === "select" && (
-          <CharacterSelect
+        {scene === "profile" && (
+          <ProfileScreen
             index={focus}
-            onIndex={setFocus}
+            onIndex={pickCharacter}
             onBack={() => go("menu")}
-            onConfirm={() => {
+            // on the way into a game: a button at the foot goes on to it
+            confirm={picking ? {
+              label: mode.kind === "host" ? "Open table" : mode.kind === "join" ? "Join table" : "Play",
+              onConfirm: () => {
               setPrefs({ character: CHARACTERS[focus].id });
-              if (mode.kind === "solo") {
-                const starting = mode.game === "bluff" ? bluff.start() : mode.game === "bhabhi" ? bhabhi.start(4) : mode.game === "gpatta" ? gpatta.start(4) : undefined;
-                void Promise.resolve(starting).then((ok) => {
-                  if (ok !== false) go("play");
-                });
-                return;
-              }
-              if (mode.kind === "patti") {
-                void Promise.resolve(pattiSolo.start(mode.table)).then((ok) => {
-                  if (ok !== false) go("play");
-                });
-                return;
-              }
-              if (mode.kind !== "practice") {
-                void sitDown(mode);
-                return;
-              }
-              void payRung().then((ok) => {
-                if (!ok) return;
-                solo.restart();
-                go("play");
-              });
-            }}
+              launch(mode);
+            } } : null}
           />
         )}
         {scene === "play" && isPatti && patti && (
           <PattiScreen
             game={patti}
-            names={online ? pattiNet?.names : undefined}
-            bots={online ? pattiNet?.bots : undefined}
+            names={online ? pattiNet?.names : (localNames ?? undefined)}
+            bots={online ? pattiNet?.bots : localBots}
             talk={talk}
             seatChars={pattiChars}
             playerName={prefs.name}
@@ -556,8 +845,8 @@ export function MainMenu() {
         {scene === "play" && extraId === "gpatta" && gpattaGame && (
           <GPattaScreen
             game={gpattaGame}
-            names={online ? gpattaNet?.names : undefined}
-            bots={online ? gpattaNet?.bots : undefined}
+            names={online ? gpattaNet?.names : (localNames ?? undefined)}
+            bots={online ? gpattaNet?.bots : localBots}
             seatChars={gpattaChars}
             paused={sheet !== null && !online}
             onMenu={online ? leaveTable : leaveSolo}
@@ -567,8 +856,8 @@ export function MainMenu() {
         {scene === "play" && extraId === "bhabhi" && bhabhiGame && (
           <BhabhiScreen
             game={bhabhiGame}
-            names={online ? bhabhiNet?.names : undefined}
-            bots={online ? bhabhiNet?.bots : undefined}
+            names={online ? bhabhiNet?.names : (localNames ?? undefined)}
+            bots={online ? bhabhiNet?.bots : localBots}
             seatChars={bhabhiChars}
             paused={sheet !== null && !online}
             onMenu={online ? leaveTable : leaveSolo}
@@ -578,8 +867,8 @@ export function MainMenu() {
         {scene === "play" && extraId === "paanch" && paanchGame && (
           <PaanchScreen
             game={paanchGame}
-            names={online ? paanchNet?.names : undefined}
-            bots={online ? paanchNet?.bots : undefined}
+            names={online ? paanchNet?.names : (localNames ?? undefined)}
+            bots={online ? paanchNet?.bots : localBots}
             talk={talk}
             seatChars={paanchChars}
             paused={sheet !== null && !online}
@@ -590,8 +879,8 @@ export function MainMenu() {
         {scene === "play" && extraId === "bluff" && bluffGame && (
           <BluffScreen
             game={bluffGame}
-            names={online ? bluffNet?.names : undefined}
-            bots={online ? bluffNet?.bots : undefined}
+            names={online ? bluffNet?.names : (localNames ?? undefined)}
+            bots={online ? bluffNet?.bots : localBots}
             talk={talk}
             seatChars={bluffChars}
             paused={sheet !== null && !online}
@@ -606,8 +895,8 @@ export function MainMenu() {
             playerName={prefs.name}
             paused={sheet !== null && !online}
             onMenu={online ? leaveTable : leaveSolo}
-            names={online ? onlineGame?.names : undefined}
-            bots={online ? onlineGame?.bots : undefined}
+            names={online ? onlineGame?.names : (localNames ?? undefined)}
+            bots={online ? onlineGame?.bots : localBots}
             talk={talk}
           />
         )}

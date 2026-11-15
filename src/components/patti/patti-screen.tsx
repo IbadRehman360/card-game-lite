@@ -358,16 +358,35 @@ export function PattiScreen({
       {result && showResult && (
         <div className="result" role="dialog" aria-modal="false" aria-label="Deal result">
           <div className="result-card patti-result">
-            <h2 className="result-title" data-tone={result.won[0] > 0 ? "good" : "bad"}>
-              {game.bust
-                ? "Out of coins"
-                : result.winners.length > 1
-                  ? result.winners.includes(0)
-                    ? "Split pot"
-                    : `${result.winners.map(nameOf).join(" & ")} split it`
-                  : result.winners[0] === 0
-                    ? `You win ${fmt(result.won[0])}!`
-                    : `${nameOf(result.winners[0])} wins ${fmt(result.won[result.winners[0]])}`}
+            {/* who took the pot: their face, their name, the coins */}
+            {!game.bust && (
+              <div className="pr-faces" aria-hidden>
+                {result.winners.map((w) => {
+                  const wc = CHARACTERS[seatChars[w]] ?? CHARACTERS[0];
+                  return <Portrait key={w} id={wc.id} accent={wc.accent} className="pr-pfp" />;
+                })}
+              </div>
+            )}
+            <h2 className="result-title pr-title" data-tone={result.won[0] > 0 ? "good" : "bad"}>
+              {game.bust ? (
+                "Out of coins"
+              ) : (
+                <>
+                  {result.winners.length > 1
+                    ? result.winners.includes(0)
+                      ? "Split pot"
+                      : `${result.winners.map(nameOf).join(" & ")} split it`
+                    : result.winners[0] === 0
+                      ? "You win"
+                      : `${nameOf(result.winners[0])} wins`}
+                  {result.winners.length === 1 && (
+                    <span className="pr-amount">
+                      <Coin />
+                      {fmt(result.won[result.winners[0]])}
+                    </span>
+                  )}
+                </>
+              )}
             </h2>
             {result.shown.some((s) => result.won[s] > 0) && (
               <ul className="patti-shown">
@@ -381,14 +400,19 @@ export function PattiScreen({
                   ))}
               </ul>
             )}
-            <p className="patti-mine">
-              You
-              <Coin />
-              <em data-tone={(result.won[0] ?? 0) - me.put > 0 ? "up" : (result.won[0] ?? 0) - me.put < 0 ? "down" : "even"}>
-                {(result.won[0] ?? 0) - me.put > 0 ? "+" : (result.won[0] ?? 0) - me.put < 0 ? "−" : ""}
-                {fmt(Math.abs((result.won[0] ?? 0) - me.put))}
-              </em>
-            </p>
+            {(() => {
+              const net = (result.won[0] ?? 0) - me.put;
+              return (
+                <p className="patti-mine">
+                  <span>You</span>
+                  <em className="pr-chip" data-tone={net > 0 ? "up" : net < 0 ? "down" : "even"}>
+                    <Coin />
+                    {net > 0 ? "+" : net < 0 ? "−" : ""}
+                    {fmt(Math.abs(net))}
+                  </em>
+                </p>
+              );
+            })()}
             <div className="result-actions">
               {game.bust ? (
                 <button type="button" className="result-next" autoFocus onClick={game.rebuy}>

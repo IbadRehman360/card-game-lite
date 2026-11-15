@@ -1,25 +1,23 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { preload } from "react-dom";
 import {
   type CSSProperties,
   type ReactNode,
-  useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
-import { BAKED } from "./baked";
 import { CHARACTERS, type CharacterId } from "@/lib/characters";
+import { usePrefs } from "@/lib/prefs";
 import type { TableSnapshot } from "@/lib/game/view";
 import { CardFace } from "@/components/game/playing-card";
+import { ChaiGlass } from "@/components/avatars/chai";
+import { SEATED, SeatedFigure } from "@/components/avatars/seated";
 import { TablePlay, TagProjector, cardPx, syncView } from "./table-play";
 import {
   type LookId,
-  SEAT_ANGLES,
   SEAT_RADIUS,
+  type Vec,
   TABLE_SCALE,
   TABLE_TOP,
   TOP_CORNER,
@@ -34,12 +32,10 @@ import {
 } from "./view2d";
 import { PattiTable, type PattiStageTable } from "./patti-table";
 import { BluffTable, type BluffStageTable } from "./bluff-table";
+import { ThemedTable } from "./table-theme";
 import "./stage2d.css";
 
-/** The one character drawn as a live 3D figure (the bear); everyone else is a picture. */
-const LIVE_ID: CharacterId = "sal";
-
-export type StageScene = "title" | "menu" | "select" | "play";
+export type StageScene = "title" | "menu" | "profile" | "play";
 
 /** What the stage needs to draw a deal in progress. */
 export interface StageTable {
@@ -61,7 +57,6 @@ export interface StageSeats {
 
 type StageProps = {
   scene: StageScene;
-  focus: number;
   table: StageTable | null;
   patti?: PattiStageTable | null;
   bluff?: (BluffStageTable & { seatChars: number[] }) | null;
@@ -72,16 +67,12 @@ type StageProps = {
   onReady: () => void;
 };
 
-// The 3D figures load after first paint, in their own small canvas; the room and table never wait.
-const Figures = dynamic(() => import("./figures"), { ssr: false });
-
 /**
  * The tavern, flat: a lamp-lit wooden room and a round felt table, drawn with plain HTML and CSS.
- * The characters sit behind the far rail; the cards in play lie on the felt.
+ * The characters (the 2D desi cast, seated) sit behind the far rail; the cards in play lie on the felt.
  */
 export default function TavernStage({
   scene,
-  focus,
   table,
   patti = null,
   bluff = null,
@@ -115,45 +106,29 @@ export default function TavernStage({
         : seats && seats.turn !== null
           ? seats.turn
           : -1;
-  const look = playing ? "play" : scene === "play" ? "menu" : scene;
-  const across = look === "play" ? (seatChars[2] ?? 2) : 2;
-  // only the bear (Big Sal) is a live 3D figure; the others sit at the table as pictures from the 3D app
-  const live = CHARACTERS[across]?.id === LIVE_ID;
-  const figIds = look === "select" || !live ? [] : [LIVE_ID];
-  const figKey = figIds.join(",");
-  // the flat picture stands in until the figure has loaded
-  const [figReady, setFigReady] = useState<string | null>(null);
-  const keyNow = useRef(figKey);
-  useEffect(() => {
-    keyNow.current = figKey;
-  }, [figKey]);
-  // a beat after the model is in, so the canvas has its final size before it fades in
-  const onFigReady = useCallback(() => {
-    const k = keyNow.current;
-    window.setTimeout(() => setFigReady(k), 60);
-  }, []);
-  // fetch the bear model alongside the page, not after the 3D code arrives
-  preload("/models/sal.glb", { as: "fetch", crossOrigin: "anonymous" });
-  const [loadFigures, setLoadFigures] = useState(false);
-  useEffect(() => {
-    // start the 3D right after first paint (the bear picture covers the wait)
-    const id = window.setTimeout(() => setLoadFigures(true), 0);
-    return () => window.clearTimeout(id);
-  }, []);
+  // the profile screen draws its own big character over the menu's room
+  const look: LookId = playing ? "play" : scene === "title" ? "title" : "menu";
+  const prefs = usePrefs();
+  const charAt = (s: number) => {
+    const n = seatChars.length;
+    const i = n ? seatChars[s % n] : s;
+    return CHARACTERS[((i % CHARACTERS.length) + CHARACTERS.length) % CHARACTERS.length].id;
+  };
+  // who sits where: across the table (and, on wide screens, either side) in a game; in the title and
+  // menu, your own character across the table as the room's host
+  const sitters: Sitter[] =
+    look === "play"
+      ? [1, 2, 3].map((seat) => ({ seat, id: charAt(seat) }))
+      : scene === "profile"
+        ? []
+        : [{ seat: 2, id: prefs.character ?? "badshah" }];
 
   return (
     <Room
-      look={look as LookId}
+      look={look}
       idle={idle}
-      focus={focus}
-      turnAcross={look === "play" && turnSeat === 2}
-      figKey={figKey}
-      figIds={figIds}
-      across={across}
-      figReady={figReady === figKey}
-      loadFigures={loadFigures}
-      // a beat after the model is in, so the canvas has its final size before it fades in
-      onFigReady={onFigReady}
+      sitters={sitters}
+      turnSeat={look === "play" ? turnSeat : -1}
     >
       {playing && (
         <div className="st-play">
@@ -167,37 +142,12 @@ export default function TavernStage({
           {patti && <PattiTable table={patti} />}
           {bluff && <BluffTable table={bluff} />}
           {seats && !table && !patti && !bluff && <TagProjector />}
+          {/* the drinks in the room are baked into its pictures; your own cutting chai sits by your seat */}
+          <ChaiGlass className="st-chai" />
         </div>
       )}
     </Room>
   );
-}
-
-/** Eases a number towards its goal (about 0.7 s), so the select camera moves between seats. */
-function useGlide(goal: number) {
-  const [v, setV] = useState(goal);
-  const cur = useRef(goal);
-  useEffect(() => {
-    if (cur.current === goal) return;
-    const snap =
-      document.documentElement.dataset.motion === "reduce" ||
-      matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let raf = 0;
-    let last = performance.now();
-    const step = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      const k = 1 - Math.exp(-dt * 6);
-      let x = snap ? goal : cur.current + (goal - cur.current) * k;
-      if (Math.abs(goal - x) < 0.004) x = goal;
-      cur.current = x;
-      setV(x);
-      if (x !== goal) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [goal]);
-  return v;
 }
 
 /** The stage size, kept fresh on resize. */
@@ -214,17 +164,6 @@ function useSize() {
     return () => window.removeEventListener("resize", on);
   }, []);
   return size;
-}
-
-/** Where each character sits: across the table, or (picking) the four seats round the far side. */
-function seatsFor(look: LookId, count: number) {
-  if (look === "select" && count === 4)
-    return SEAT_ANGLES.map((a) => ({
-      x: SEAT_RADIUS * Math.sin(a),
-      z: -SEAT_RADIUS * Math.cos(a),
-      rot: -a,
-    }));
-  return [{ x: 0, z: -SEAT_RADIUS, rot: 0 }];
 }
 
 /** A few dust motes in the lamp light: x (in lamp widths from the middle), y (share of the way down), phase. */
@@ -290,66 +229,97 @@ const DECOR_TRICK = [
   ["2S", 0.0, 0.16, 0.08],
 ] as const;
 
+/** How far (metres) the player across sits back from the far rail in a game. */
+const ACROSS_BACK = 0.35;
+
+/** A character at one of the far seats: 1 (right), 2 (across), 3 (left). */
+interface Sitter {
+  seat: number;
+  id: CharacterId;
+}
+
+/**
+ * One seated character, drawn behind the table at their seat: the 2D cast's half-body figure. Shot in
+ * Bluff, the one across jerks back and slumps over the table (the drama fires "st-slump").
+ */
+function SeatedAt({
+  sitter,
+  box,
+  behind,
+  turn,
+  shot,
+  delay,
+}: {
+  sitter: Sitter;
+  box: { l: number; t: number; w: number };
+  /** Drawn under the table, so its far rail crosses their hands. */
+  behind: boolean;
+  turn: boolean;
+  shot: boolean;
+  delay: number;
+}) {
+  const [slumped, setSlumped] = useState(false);
+  useEffect(() => {
+    if (!shot) return;
+    const go = () => setSlumped(true);
+    window.addEventListener("st-slump", go);
+    return () => window.removeEventListener("st-slump", go);
+  }, [shot]);
+  return (
+    <div
+      className="st-sit"
+      data-seat={sitter.seat}
+      data-behind={behind || undefined}
+      data-turn={turn || undefined}
+      data-slump={slumped || undefined}
+      style={
+        {
+          left: box.l,
+          top: box.t,
+          width: box.w,
+          "--sit-delay": `${-delay}s`,
+        } as CSSProperties
+      }
+    >
+      <SeatedFigure id={sitter.id} />
+    </div>
+  );
+}
+
 function Room({
   look,
   idle,
-  focus,
-  turnAcross,
-  figKey,
-  figIds,
-  figReady,
-  loadFigures,
-  across,
-  onFigReady,
+  sitters,
+  turnSeat,
   children,
 }: {
   look: LookId;
   idle: boolean;
-  focus: number;
-  turnAcross: boolean;
-  figKey: string;
-  figIds: CharacterId[];
-  figReady: boolean;
-  loadFigures: boolean;
-  /** The character across the table (an index into CHARACTERS). */
-  across: number;
-  onFigReady: () => void;
+  sitters: Sitter[];
+  /** Whose turn it is (a game seat; -1 for nobody), so that seat's figure is lit. */
+  turnSeat: number;
   children: ReactNode;
 }) {
   const [w, h] = useSize();
-  // picking: the camera glides from seat to seat, as the 3D app's does
-  const at = useGlide(look === "select" ? focus : 0);
   const aspect = plateAspect(w, h);
   // a game on anything wider than an upright phone draws its own table, through a camera fitted to the
   // screen (the captured pictures were framed for one shape and cut the player across off)
   // (an upright tablet too: the phone's tall picture, cropped to its squarer shape, loses the player across)
   const wideGame = look === "play" && (aspect !== "tall" || w / h > 0.6);
   // title, menu and games stand on the pictures rendered from the 3D app: draw through their camera and crop
-  const onPlate = look !== "select" && !wideGame;
+  const onPlate = !wideGame;
   const plateView = useMemo(
     () => (onPlate ? makePlateView(look, w, h) : null),
     [onPlate, look, w, h],
   );
   const view = useMemo(
-    () => plateView ?? makeView(look, w, h, at),
-    [plateView, look, w, h, at],
+    () => plateView ?? makeView(look, w, h),
+    [plateView, look, w, h],
   );
   // the cards, hands and tags read the same projection (set before they render)
   syncView(view);
-  // title, menu and picking use the pictures rendered from the 3D app; picking shows all four seated in it
-  const plate = wideGame
-    ? null
-    : look === "select"
-      ? `/baked/plate-select${Math.max(0, Math.min(3, focus))}-${aspect}.webp`
-      : `/baked/plate-${look}-${aspect}.webp`;
-
-  // the stand-in picture stays until the live figure has faded in over it
-  const [figShown, setFigShown] = useState(false);
-  const [shownFor, setShownFor] = useState(figKey);
-  if (shownFor !== figKey) {
-    setShownFor(figKey);
-    setFigShown(false);
-  }
+  // the room's pictures (no one in them: the cast is drawn over them, below)
+  const plate = wideGame ? null : `/baked/plate-${look}-${aspect}.webp`;
 
   const table = useMemo(() => {
     const y = TABLE_TOP;
@@ -374,39 +344,38 @@ function Room({
     };
   }, [view]);
 
-  // the live figure is drawn in a canvas just big enough for it (not the whole screen)
-  const figBox = useMemo(() => {
-    const z = -SEAT_RADIUS;
-    let l = Infinity,
-      t = Infinity,
-      r = -Infinity,
-      b = -Infinity;
-    for (const x of [-0.8, 0.8])
-      for (const y of [TABLE_TOP - 0.1, 2.05])
-        for (const dz of [-0.35, 0.35]) {
-          const [px, py] = view.px([x, y, z + dz]);
-          l = Math.min(l, px);
-          r = Math.max(r, px);
-          t = Math.min(t, py);
-          b = Math.max(b, py);
-        }
-    const padX = (r - l) * 0.08;
-    const padY = (b - t) * 0.08;
-    l = Math.max(0, Math.floor(l - padX));
-    t = Math.max(0, Math.floor(t - padY));
-    r = Math.min(w, Math.ceil(r + padX));
-    b = Math.min(h, Math.ceil(b + padY));
-    return { l, t, w: Math.max(1, r - l), h: Math.max(1, b - t) };
-  }, [view, w, h]);
-  const figBoxKey = useMemo(
-    () => ({ l: figBox.l, t: figBox.t, vw: w, vh: h }),
-    [figBox.l, figBox.t, w, h],
-  );
+  // each seated character: their table line on the rail in front of them, sized for their distance.
+  // Across: in a game they sit back from the far rail (sized for a chair further off, their hands
+  // just under the rail, which is drawn over them where the table is drawn), so their face stays clear
+  // of the cards dealt across; in the menus, your character leans on it. Either side (wide screens
+  // only, where there is floor beside the table): just off their own rail, forearms over it.
+  const sitBoxes = useMemo(() => {
+    const rimZ = -(TOP_DEPTH + 0.08) * TABLE_SCALE;
+    const rimX = (TOP_HALF + 0.08) * TABLE_SCALE;
+    const sides = look === "play" && w / Math.max(1, h) > 0.9;
+    const k = look === "play" ? 1 : 1.12;
+    return sitters.flatMap((s) => {
+      if (s.seat !== 2 && !sides) return [];
+      const dx = s.seat === 1 ? 1 : s.seat === 3 ? -1 : 0;
+      const at: Vec =
+        dx === 0
+          ? [0, TABLE_TOP + 0.04, rimZ]
+          : [dx * (rimX + 0.3), TABLE_TOP + 0.04, 0];
+      // a metre at the sitter's own distance, measured across the screen
+      const back = look === "play" && dx === 0 ? ACROSS_BACK : 0;
+      const depth: Vec = dx === 0 ? [0, TABLE_TOP, -SEAT_RADIUS - back] : at;
+      const ppm =
+        view.px([depth[0] + 0.5, depth[1], depth[2]])[0] -
+        view.px([depth[0] - 0.5, depth[1], depth[2]])[0];
+      const bw = (SEATED.w / SEATED.perMetre) * Math.abs(ppm) * k * (dx ? 0.92 : 1);
+      const [x, y] = view.px(at);
+      // sat back: the hands drop just under the far rail
+      const top = y - (bw * SEATED.table) / SEATED.w + (back ? bw * 0.05 : 0);
+      const behind = back > 0 && wideGame;
+      return [{ sitter: s, box: { l: x - bw / 2, t: top, w: bw }, behind }];
+    });
+  }, [sitters, look, view, w, h, wideGame]);
 
-  const seatPos = useMemo(
-    () => seatsFor(look, figIds.length),
-    [look, figIds.length],
-  );
   // the lamp hangs over the table in the menus; in a game it is lifted out of the picture
   const lampAt = view.pc([0, 2.92, 0]);
   const lampWide = view.px([0.42, 2.92, 0])[0] - view.px([-0.42, 2.92, 0])[0];
@@ -429,7 +398,6 @@ function Room({
       data-look={look}
       data-idle={idle}
       data-plate={plate ? "on" : undefined}
-      data-fig={figReady ? "ready" : undefined}
       style={
         {
           "--sc": `${cardPx(view).toFixed(1)}px`,
@@ -438,7 +406,7 @@ function Room({
       }
     >
       <div className="st-wall" />
-      {/* title, menu and picking: the room (and, picking, the four regulars) are the 3D render itself */}
+      {/* title, menu and a game on an upright phone: the room is the 3D render itself (no one in it) */}
       {plate && (
         <img className="st-plate" src={plate} alt="" draggable={false} />
       )}
@@ -448,167 +416,21 @@ function Room({
       />
       {look !== "play" && <Bunting />}
 
-      {loadFigures && figIds.length > 0 && (
-        <div
-          className="st-fig"
-          // the picture's table stands in front of the figure: cut the figure away where the table is
-          style={
-            onPlate
-              ? { clipPath: `path(evenodd, "M0 0H${w}V${h}H0Z ${table.rim}")` }
-              : undefined
-          }
-        >
-          <div
-            className="st-fig-box"
-            style={{
-              left: figBox.l,
-              top: figBox.t,
-              width: figBox.w,
-              height: figBox.h,
-            }}
-          >
-            <Figures
-              key={figKey}
-              look={look}
-              ids={figIds}
-              seats={seatPos}
-              focus={turnAcross ? 0 : -1}
-              at={at}
-              fps={idle ? 8 : look === "play" ? 20 : 30}
-              crop={plateView?.crop}
-              box={figBoxKey}
-              onReady={onFigReady}
-            />
-          </div>
-        </div>
-      )}
+      {/* the 3D app's table, projected through its camera, in the table theme picked in the shop */}
+      <ThemedTable paths={table} w={w} h={h} plate={!!plate} play={look === "play"} squash={fk} />
 
-      {/* the 3D app's own picture of whoever sits across: always for the others, and for the bear until
-          his live figure has loaded (then it fades into him, so he is there from the first frame) */}
-      {plateView &&
-        look !== "select" &&
-        (figIds.length === 0 || !figShown) &&
-        (() => {
-          const sp =
-            BAKED[aspect].sprites[
-              look === "play" ? `play-c${across}-s2` : look
-            ];
-          if (!sp) return null;
-          const { s, ox, oy } = plateView.crop;
-          return (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={sp.src}
-              className="st-sprite"
-              data-out={figIds.length > 0 && figReady ? "" : undefined}
-              onAnimationEnd={(e) => {
-                if (e.animationName === "st-stand-out") setFigShown(true);
-              }}
-              src={sp.src}
-              alt=""
-              draggable={false}
-              style={{
-                left: sp.x * s + ox,
-                top: sp.y * s + oy,
-                width: sp.w * s,
-                height: sp.h * s,
-              }}
-            />
-          );
-        })()}
-
-      {/* a game on a wider screen: the same picture of whoever sits across, taken from the upright phone's
-          shot (the only one that shows them whole) and set on their chair in this view; the table hides
-          the bottom of it as it does the live figure */}
-      {wideGame &&
-        (figIds.length === 0 || !figShown) &&
-        (() => {
-          const sp = BAKED.tall.sprites[`play-c${across}-s2`];
-          if (!sp) return null;
-          const from = makeView("play", BAKED.tall.w, BAKED.tall.h);
-          const chest: [number, number, number] = [0, TABLE_TOP + 0.3, -SEAT_RADIUS];
-          const span = (v: typeof view) =>
-            v.px([0.3, chest[1], chest[2]])[0] - v.px([-0.3, chest[1], chest[2]])[0];
-          const k = span(view) / Math.max(1, span(from));
-          const [fx, fy] = from.px(chest);
-          const [tx, ty] = view.px(chest);
-          return (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={sp.src}
-              className="st-sprite"
-              data-out={figIds.length > 0 && figReady ? "" : undefined}
-              onAnimationEnd={(e) => {
-                if (e.animationName === "st-stand-out") setFigShown(true);
-              }}
-              src={sp.src}
-              alt=""
-              draggable={false}
-              style={{
-                left: tx + (sp.x - fx) * k,
-                top: ty + (sp.y - fy) * k,
-                width: sp.w * k,
-                height: sp.h * k,
-              }}
-            />
-          );
-        })()}
-
-      {/* the 3D app's table, projected through its camera */}
-      <svg
-        className="st-table"
-        data-hide={plate ? "" : undefined}
-        width={w}
-        height={h}
-        viewBox={`0 0 ${w} ${h}`}
-        aria-hidden
-      >
-        <defs>
-          <radialGradient id="st-felt" cx="0.5" cy="0.42" r="0.64">
-            <stop offset="0" stopColor="#a8361f" />
-            <stop offset="0.22" stopColor="#9a2518" />
-            <stop offset="0.5" stopColor="#952316" />
-            <stop offset="0.85" stopColor="#6c120b" />
-            <stop offset="1" stopColor="#4a0c06" />
-          </radialGradient>
-          <linearGradient id="st-wood" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#5a3214" />
-            <stop offset="0.45" stopColor="#522c0e" />
-            <stop offset="1" stopColor="#2e180a" />
-          </linearGradient>
-        </defs>
-        <path d={table.apron} fill="#0a0200" />
-        <path d={table.apronTop} fill="#1a0301" />
-        <path d={table.rim} fill="url(#st-wood)" />
-        {/* the lit inner bevel of the rim, then the dark seam into the felt */}
-        <path
-          d={table.lip}
-          fill="none"
-          stroke="#8f5e2d"
-          strokeWidth={Math.max(2, w / 200)}
+      {/* the cast, seated behind the table (over the room's picture, and over the far rail they lean on) */}
+      {sitBoxes.map(({ sitter, box, behind }) => (
+        <SeatedAt
+          key={`${look}-${sitter.seat}-${sitter.id}`}
+          sitter={sitter}
+          box={box}
+          behind={behind}
+          turn={sitter.seat === turnSeat}
+          shot={look === "play" && sitter.seat === 2}
+          delay={sitter.seat * 1.3}
         />
-        <path
-          d={table.felt}
-          fill="url(#st-felt)"
-          stroke="#2b060d"
-          strokeWidth={Math.max(1.5, w / 320)}
-        />
-        <path
-          d={table.inlay}
-          fill="none"
-          stroke="#c0631a"
-          strokeWidth={Math.max(1.6, w / 300)}
-        />
-        {table.studs.map(([x, y], i) => (
-          <circle
-            key={i}
-            cx={x}
-            cy={y}
-            r={Math.max(1.4, w / 600)}
-            fill="#d07a2a"
-          />
-        ))}
-      </svg>
+      ))}
 
       {false && (
         <div className="st-decor-layer">

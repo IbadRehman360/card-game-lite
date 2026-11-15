@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { playEmoteSound } from "@/lib/emote-sounds";
 import { sfx } from "@/lib/sfx";
+import { Avatar } from "@/components/avatars/avatar";
 import type { LiveChat } from "./emotes";
 import "./emotes.css";
 
@@ -67,7 +68,12 @@ export function ChatPanel({ chat, onClose }: { chat: ChatProps; onClose: () => v
             const mine = m.playerId === chat.myId;
             return (
               <div key={m.id} className="chat-msg" data-mine={mine}>
-                {!mine && <span className="chat-who">{m.name}</span>}
+                {!mine && (
+                  <span className="chat-who chat-who-row">
+                    {m.avatar && <Avatar id={m.avatar} />}
+                    {m.name}
+                  </span>
+                )}
                 <div className="chat-bubble">{m.text}</div>
               </div>
             );

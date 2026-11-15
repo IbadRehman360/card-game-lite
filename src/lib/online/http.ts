@@ -3,6 +3,7 @@ import { GameError } from "../game/engine";
 import { RoomError } from "./rooms";
 import { WalletError } from "../wallet/wallets";
 import { ApiError } from "./guard";
+import { StoreUnavailableError } from "./store";
 
 export const TOKEN_HEADER = "x-baazi-token";
 
@@ -27,6 +28,7 @@ export async function handle(fn: () => Promise<unknown>) {
     if (err instanceof RoomError) return fail({ error: err.message }, err.status);
     if (err instanceof WalletError) return fail({ error: err.message, coins: true, short: err.short ?? null }, err.status);
     if (err instanceof GameError) return fail({ error: err.message }, 400);
+    if (err instanceof StoreUnavailableError) return fail({ error: err.message }, 503, { "Retry-After": "5" });
     console.error("[baazi] api error", err);
     return fail({ error: "Something went wrong, try again" }, 500);
   }

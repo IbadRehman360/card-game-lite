@@ -1,7 +1,7 @@
 import "server-only";
 import type { GameOptions, Seat } from "../game/engine";
 import { supabaseConfigured } from "./supabase";
-import type { ChatMessage, RoomEvent, StoredState } from "./types";
+import type { ChatMessage, QuickMeta, RoomEvent, StoredState } from "./types";
 
 export interface RoomRow {
   code: string;
@@ -9,6 +9,8 @@ export interface RoomRow {
   options: GameOptions;
   state: StoredState | null;
   version: number;
+  /** A quick-match table (null or missing for a table someone hosts). */
+  quick?: QuickMeta | null;
 }
 
 export interface PlayerRow {
@@ -23,10 +25,18 @@ export interface PlayerRow {
   /** Their coin wallet (a hash of the phone's wallet token). */
   wallet?: string;
   created_at: number;
+  /** When this player's phone last asked about a quick-match table that is still filling (server ms). */
+  last_seen?: number;
 }
 
 /** Thrown when a write would put two players in the same seat. */
 export class SeatTakenError extends Error {}
+
+/**
+ * The store itself can't be used right now (the database is down, or is missing a migration). Routes
+ * answer 503 with this message rather than a bare 500, and phones keep retrying.
+ */
+export class StoreUnavailableError extends Error {}
 
 /**
  * Where online tables live: Supabase Postgres when it is configured (works on serverless hosts like
@@ -36,13 +46,17 @@ export class SeatTakenError extends Error {}
 export interface RoomStore {
   getRoom(code: string): Promise<RoomRow | null>;
   /** Returns false if the code is already taken. */
-  insertRoom(room: Pick<RoomRow, "code" | "options">): Promise<boolean>;
+  insertRoom(room: Pick<RoomRow, "code" | "options"> & { quick?: QuickMeta }): Promise<boolean>;
   /** Applies the patch only if the room is still at `expectedVersion`; returns the new version or null. */
   updateRoom(
     code: string,
     expectedVersion: number,
-    patch: Partial<Pick<RoomRow, "status" | "options" | "state">>,
+    patch: Partial<Pick<RoomRow, "status" | "options" | "state" | "quick">>,
   ): Promise<number | null>;
+  /** Quick-match tables for this key (game and seats) that haven't started yet, oldest first. */
+  findQuickRooms(key: string): Promise<RoomRow[]>;
+  /** A player's phone is still there (quick-match tables that are filling forget phones that go quiet). */
+  seePlayer(code: string, id: string): Promise<void>;
   listPlayers(code: string): Promise<PlayerRow[]>;
   playerByToken(code: string, token: string): Promise<PlayerRow | null>;
   insertPlayer(p: Omit<PlayerRow, "id" | "created_at">): Promise<PlayerRow>;

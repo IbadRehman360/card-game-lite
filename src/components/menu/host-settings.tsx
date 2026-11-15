@@ -79,8 +79,6 @@ export function HostSettings({
         </div>
       ))}
 
-      <p className="host-note">Computer fills empty seats</p>
-
       <button
         type="button"
         className="home-btn home-btn-gold host-go"

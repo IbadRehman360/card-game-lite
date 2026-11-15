@@ -85,11 +85,35 @@ export const memoryStore: RoomStore = {
     return clone(row);
   },
 
-  async insertRoom({ code, options }) {
+  async insertRoom({ code, options, quick }) {
     sweepStale();
     if (db.rooms.has(code)) return false;
-    db.rooms.set(code, { code, options: clone(options), status: "lobby", state: null, version: 0, updatedAt: Date.now() });
+    db.rooms.set(code, {
+      code,
+      options: clone(options),
+      status: "lobby",
+      state: null,
+      version: 0,
+      updatedAt: Date.now(),
+      ...(quick ? { quick: clone(quick) } : {}),
+    });
     return true;
+  },
+
+  async findQuickRooms(key) {
+    const out: RoomRow[] = [];
+    for (const r of db.rooms.values()) {
+      if (r.status !== "lobby" || r.quick?.key !== key) continue;
+      const { updatedAt: _ignored, ...row } = r;
+      void _ignored;
+      out.push(clone(row));
+    }
+    return out.sort((a, b) => (a.quick?.openedAt ?? 0) - (b.quick?.openedAt ?? 0)).slice(0, 10);
+  },
+
+  async seePlayer(_code, id) {
+    const p = db.players.get(id);
+    if (p) p.last_seen = Date.now();
   },
 
   async updateRoom(code, expectedVersion, patch) {
@@ -112,7 +136,7 @@ export const memoryStore: RoomStore = {
   },
 
   async insertPlayer(p) {
-    const row: PlayerRow = { ...p, id: randomUUID(), created_at: Date.now() + db.players.size / 1e6 };
+    const row: PlayerRow = { ...p, id: randomUUID(), created_at: Date.now() + db.players.size / 1e6, last_seen: Date.now() };
     if (seatClash(row)) throw new SeatTakenError();
     db.players.set(row.id, row);
     return clone(row);

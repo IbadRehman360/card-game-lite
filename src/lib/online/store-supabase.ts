@@ -1,7 +1,7 @@
 import "server-only";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { PlayerRow, RoomRow, RoomStore } from "./store";
-import { CHAT_KEEP, SeatTakenError, runSweepHook } from "./store";
+import { CHAT_KEEP, SeatTakenError, StoreUnavailableError, runSweepHook } from "./store";
 import { supabaseAdmin } from "./supabase";
 import type { ChatMessage } from "./types";
 
@@ -23,9 +23,38 @@ const SWEEP_EVERY_MS = 60 * 1000;
 const UNIQUE = "23505";
 const sb = () => supabaseAdmin();
 
-function fail(what: string, error: { message: string } | null): never {
+function fail(what: string, error: { message: string; code?: string } | null): never {
   console.error(`[baazi] supabase ${what} failed`, error?.message);
-  throw new Error(`Tables are unavailable right now (${what})`);
+  // a check the database makes that this code expects to be gone (e.g. seats 4 and 5 before the quick-match migration)
+  if (error?.code === CHECK_FAILED) throw new StoreUnavailableError(NEEDS_MIGRATION);
+  throw new StoreUnavailableError("Tables are unavailable right now, try again in a moment");
+}
+
+const CHECK_FAILED = "23514";
+const UNDEFINED_COLUMN = "42703";
+const NEEDS_MIGRATION = "Tables need a database update (run the latest Supabase migration)";
+
+/**
+ * The quick-match columns (rooms.quick, rooms.quick_key) come with a later migration. A database that
+ * hasn't had it still runs hosted tables: rooms are read without those columns, and only quick match is
+ * refused. (null: not known yet; found out on the first read.)
+ */
+let quickColumns: boolean | null = null;
+let quickMissingAt = 0;
+const ROOM_COLUMNS = "code, status, options, state, version";
+const roomColumns = () => {
+  // look again now and then, so running the migration needs no restart
+  if (quickColumns === false && Date.now() - quickMissingAt > 60_000) quickColumns = null;
+  return quickColumns === false ? ROOM_COLUMNS : `${ROOM_COLUMNS}, quick`;
+};
+const quickOff = () => roomColumns() === ROOM_COLUMNS;
+const missingQuick = (e: { code?: string; message: string }) => e.code === UNDEFINED_COLUMN || /column .*quick.* does not exist/i.test(e.message);
+function noQuickColumns() {
+  if (quickColumns !== false) {
+    console.warn("[baazi] rooms.quick is missing: hosted tables work, quick match is off until supabase/migrations/20261115000000_quick_match.sql is run");
+  }
+  quickColumns = false;
+  quickMissingAt = Date.now();
 }
 
 interface PlayerDb {
@@ -38,6 +67,7 @@ interface PlayerDb {
   avatar: string | null;
   wallet: string | null;
   created_at: string;
+  last_seen?: string | null;
 }
 
 const toPlayer = (r: PlayerDb): PlayerRow => ({
@@ -50,6 +80,7 @@ const toPlayer = (r: PlayerDb): PlayerRow => ({
   ...(r.avatar ? { avatar: r.avatar } : {}),
   ...(r.wallet ? { wallet: r.wallet } : {}),
   created_at: Date.parse(r.created_at),
+  ...(r.last_seen ? { last_seen: Date.parse(r.last_seen) } : {}),
 });
 
 const isSeatClash = (e: { code?: string; message: string }) => e.code === UNIQUE && e.message.includes("room_seat");
@@ -85,21 +116,52 @@ async function sweepStale() {
 
 export const supabaseStore: RoomStore = {
   async getRoom(code) {
-    const { data, error } = await sb()
-      .from("rooms")
-      .select("code, status, options, state, version")
-      .eq("code", code)
-      .maybeSingle();
+    const read = () => sb().from("rooms").select(roomColumns()).eq("code", code).maybeSingle();
+    let { data, error } = await read();
+    if (error && quickColumns !== false && missingQuick(error)) {
+      noQuickColumns();
+      ({ data, error } = await read());
+    }
     if (error) fail("getRoom", error);
-    return (data as RoomRow | null) ?? null;
+    if (quickColumns === null) quickColumns = true;
+    return (data as unknown as RoomRow | null) ?? null;
   },
 
-  async insertRoom({ code, options }) {
+  async insertRoom({ code, options, quick }) {
     await sweepStale().catch((e) => console.error("[baazi] sweep failed", e));
-    const { error } = await sb().from("rooms").insert({ code, options, status: "lobby", state: null, version: 0 });
+    if (quick && quickOff()) throw new StoreUnavailableError(NEEDS_MIGRATION);
+    const { error } = await sb()
+      .from("rooms")
+      .insert({ code, options, status: "lobby", state: null, version: 0, ...(quick ? { quick, quick_key: quick.key } : {}) });
     if (!error) return true;
     if (error.code === UNIQUE) return false;
+    if (quick && missingQuick(error)) {
+      noQuickColumns();
+      throw new StoreUnavailableError(NEEDS_MIGRATION);
+    }
     fail("insertRoom", error);
+  },
+
+  async findQuickRooms(key) {
+    if (quickOff()) throw new StoreUnavailableError(NEEDS_MIGRATION);
+    const { data, error } = await sb()
+      .from("rooms")
+      .select("code, status, options, state, version, quick")
+      .eq("quick_key", key)
+      .eq("status", "lobby")
+      .order("created_at", { ascending: true })
+      .limit(10);
+    if (error && missingQuick(error)) {
+      noQuickColumns();
+      throw new StoreUnavailableError(NEEDS_MIGRATION);
+    }
+    if (error) fail("findQuickRooms", error);
+    return (data ?? []) as RoomRow[];
+  },
+
+  async seePlayer(code, id) {
+    const { error } = await sb().from("room_players").update({ last_seen: new Date().toISOString() }).eq("room_code", code).eq("id", id);
+    if (error) fail("seePlayer", error);
   },
 
   async updateRoom(code, expectedVersion, patch) {

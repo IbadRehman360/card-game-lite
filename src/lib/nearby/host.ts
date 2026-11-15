@@ -553,6 +553,8 @@ export class NearbyHost {
       extra: null,
       spectating,
       turnDeadlineIn: deadline ? Math.max(0, deadline - this.clock.now()) : null,
+      quick: false,
+      match: null,
     };
   }
 

@@ -219,20 +219,60 @@
 .st-dcoins i[data-i="3"] { top: -9px; }
 .st-dcoins i[data-i="4"] { left: calc(var(--cw) * 0.45); top: 3px; }
 
-/* the 3D figures: a transparent canvas over the whole room, behind the table */
-.st-fig {
+/* the cast seated at the table (tavern-stage SeatedAt): over the far rail they lean on, under the cards */
+.st-sit {
   position: absolute;
-  inset: 0;
-  z-index: 1;
+  z-index: 3;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.3s;
+  transform-origin: 50% 92%;
+  filter: brightness(0.92) saturate(0.95) drop-shadow(0 8px 10px rgba(0, 0, 0, 0.55));
+  animation: st-sit-in 0.5s ease-out both;
+  transition: filter 0.3s;
 }
-.st-room[data-fig="ready"] .st-fig {
-  opacity: 1;
+/* the player across, sat back behind the drawn table: its far rail crosses their hands */
+.st-sit[data-behind] {
+  z-index: 1;
 }
-.st-fig canvas {
-  display: block;
+.st-sit .seated {
+  width: 100%;
+  height: auto;
+}
+@keyframes st-sit-in {
+  from {
+    opacity: 0;
+    transform: translateY(4%);
+  }
+}
+/* their turn: the lamp finds them */
+.st-sit[data-turn] {
+  filter: brightness(1.04) drop-shadow(0 0 10px rgba(255, 206, 120, 0.55)) drop-shadow(0 8px 10px rgba(0, 0, 0, 0.5));
+}
+/* shot in Bluff: thrown back by the bang, then slumped over the table, where they stay */
+.st-sit[data-slump] {
+  animation: st-slump 1.4s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+  filter: brightness(0.7) saturate(0.7) drop-shadow(0 8px 10px rgba(0, 0, 0, 0.55));
+}
+.st-sit[data-slump] .sit-body,
+.st-sit[data-slump] .sit-head,
+.st-sit[data-slump] .sit-eyes,
+.st-room[data-idle="true"] .st-sit .sit-body,
+.st-room[data-idle="true"] .st-sit .sit-head,
+.st-room[data-idle="true"] .st-sit .sit-eyes {
+  animation: none;
+}
+@keyframes st-slump {
+  0% {
+    transform: none;
+  }
+  9% {
+    transform: translateY(-3%) rotate(-4deg);
+  }
+  30% {
+    transform: translateY(-2%) rotate(-3deg);
+  }
+  100% {
+    transform: translateY(12%) rotate(5deg) scaleY(0.88);
+  }
 }
 
 /* ─── on the felt ─── */
@@ -364,7 +404,8 @@
 
 /* 3 Patti */
 .st-patti {
-  width: calc(var(--sc) * 0.9);
+  /* the others' face-down three: a little smaller than a played card */
+  width: calc(var(--sc) * 0.74);
 }
 .st-folded {
   filter: brightness(0.5) grayscale(0.4);
@@ -939,7 +980,7 @@ html[data-motion="reduce"] .st-room *::after {
     #24120a;
 }
 
-/* picking: the picture already holds the table and the four regulars */
+/* on a picture of the room: the picture already holds the table */
 .st-table[data-hide] {
   display: none;
 }
@@ -951,61 +992,4 @@ html[data-motion="reduce"] .st-room *::after {
   from {
     opacity: 0.4;
   }
-}
-
-/* a regular other than the bear, across the table: the 3D app's picture of them, breathing gently */
-.st-sprite {
-  position: absolute;
-  z-index: 1;
-  pointer-events: none;
-  user-select: none;
-  transform-origin: 50% 100%;
-  animation: st-breathe 3.6s ease-in-out infinite;
-}
-@keyframes st-breathe {
-  50% {
-    transform: scaleY(1.012) translateY(-0.4%);
-  }
-}
-.st-room[data-idle="true"] .st-sprite {
-  animation: none;
-}
-
-/* the live figure's canvas: only the box round the figure, not the whole screen */
-.st-fig-box {
-  position: absolute;
-}
-
-/* the bear's stand-in picture: there from the first frame, then the live figure fades in over it */
-.st-sprite {
-  animation:
-    st-stand-in 0.5s ease-out both,
-    st-breathe 3.6s ease-in-out 0.5s infinite;
-}
-@keyframes st-stand-in {
-  from {
-    opacity: 0;
-    transform: translateY(3%) scale(0.98);
-  }
-}
-.st-sprite[data-out] {
-  animation: st-stand-out 0.6s ease-in 0.15s both;
-}
-@keyframes st-stand-out {
-  to {
-    opacity: 0;
-  }
-}
-.st-fig {
-  transition: opacity 0.6s ease-out;
-}
-@media (prefers-reduced-motion: reduce) {
-  .st-sprite,
-  .st-sprite[data-out] {
-    animation-duration: 0.01s;
-  }
-}
-/* resting: no breathing, but the stand-in still fades away once the figure is in */
-.st-room[data-idle="true"] .st-sprite:not([data-out]) {
-  animation: st-stand-in 0.5s ease-out both;
 }

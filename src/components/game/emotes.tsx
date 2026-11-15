@@ -17,6 +17,8 @@ export type LiveChat = {
   live?: boolean;
   playerId?: string;
   at?: number;
+  /** The sender's character (lib/characters), for their face by the message. */
+  avatar?: string;
 };
 
 /** How long after an emote before the next one can go (it's still flying). */

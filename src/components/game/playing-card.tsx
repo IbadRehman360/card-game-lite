@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { type Card, SUIT_SYMBOL, rankLabel, suitOf } from "@/lib/game/cards";
 import { paintCard } from "@/components/stage/card-texture";
+import { usePrefs } from "@/lib/prefs";
 
 /**
  * A card face in your hand: the very same drawing as the cards on the table (real pip layouts, the court
@@ -10,10 +11,12 @@ import { paintCard } from "@/components/stage/card-texture";
  */
 export function CardFace({ card }: { card: Card }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  // the suit colours picked in Card style (red and black, or four colours)
+  const colors = usePrefs().suitColors;
   useEffect(() => {
     if (!ref.current) return;
-    return paintCard(ref.current, rankLabel(card), SUIT_SYMBOL[suitOf(card)] as "♠" | "♥" | "♦" | "♣");
-  }, [card]);
+    return paintCard(ref.current, rankLabel(card), SUIT_SYMBOL[suitOf(card)] as "♠" | "♥" | "♦" | "♣", undefined, colors);
+  }, [card, colors]);
   return (
     <span className="card-face" data-art>
       <canvas ref={ref} aria-hidden />

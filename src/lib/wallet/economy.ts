@@ -144,6 +144,67 @@ export interface LedgerEntry {
 export interface WalletView {
   coins: number;
   ledger: LedgerEntry[];
+  /** Card backs this wallet owns (the free one is always included). */
+  backs: CardBackId[];
+  /** Table themes this wallet owns (the free one is always included). */
+  tables: TableThemeId[];
 }
+
+// ───────────── card backs, bought with coins ─────────────
+
+export type CardBackId = "wine" | "navy" | "forest" | "noir" | "chai" | "truck";
+
+export interface CardBackItem {
+  id: CardBackId;
+  name: string;
+  /** Coins (never real money). 0: free for everyone. */
+  price: number;
+}
+
+/** The backs on sale, in shop order. The first one is the free default. The art is in src/lib/card-style.ts. */
+export const CARD_BACKS: CardBackItem[] = [
+  { id: "wine", name: "Wine", price: 0 },
+  { id: "navy", name: "Navy", price: 300 },
+  { id: "forest", name: "Forest", price: 500 },
+  { id: "noir", name: "Noir", price: 800 },
+  { id: "chai", name: "Dhaba Chai", price: 1000 },
+  { id: "truck", name: "Truck Art", price: 1500 },
+];
+
+export const DEFAULT_BACK: CardBackId = "wine";
+
+export const isCardBackId = (v: unknown): v is CardBackId => CARD_BACKS.some((b) => b.id === v);
+export const cardBackById = (v: unknown) => CARD_BACKS.find((b) => b.id === v) ?? null;
+
+// ───────────── table themes, bought with coins ─────────────
+
+export type TableThemeId = "tavern" | "baize" | "midnight" | "dhaba" | "marble" | "truck" | "gold";
+
+export interface TableThemeItem {
+  id: TableThemeId;
+  name: string;
+  /** Coins (never real money). 0: free for everyone. */
+  price: number;
+}
+
+/**
+ * The table themes on sale, in shop order. The first one is the free default (the tavern's red felt).
+ * Owned in the wallet's jsonb like the backs (`tables`), so no table change is needed. The look of each
+ * one is in src/components/stage/table-theme.tsx.
+ */
+export const TABLE_THEMES: TableThemeItem[] = [
+  { id: "tavern", name: "Tavern Red", price: 0 },
+  { id: "baize", name: "Royal Baize", price: 400 },
+  { id: "midnight", name: "Midnight", price: 600 },
+  { id: "dhaba", name: "Dhaba Wood", price: 900 },
+  { id: "marble", name: "Mughal Marble", price: 1200 },
+  { id: "truck", name: "Truck Art", price: 1500 },
+  { id: "gold", name: "Gold Club", price: 2500 },
+];
+
+export const DEFAULT_TABLE: TableThemeId = "tavern";
+
+export const isTableThemeId = (v: unknown): v is TableThemeId => TABLE_THEMES.some((t) => t.id === v);
+export const tableThemeById = (v: unknown) => TABLE_THEMES.find((t) => t.id === v) ?? null;
 
 export const WALLET_HEADER = "x-baazi-wallet";

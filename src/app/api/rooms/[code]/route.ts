@@ -5,6 +5,7 @@ import { clientId, limit, readJson } from "@/lib/online/guard";
 import {
   RoomError,
   chooseSeat,
+  comeBack,
   extraMove,
   extraTick,
   getRoomView,
@@ -86,6 +87,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
         break;
       case "reap":
         await reapAway(code, token);
+        break;
+      // back at the table after the phone went quiet (rejoining after a reload, a closed app or lost signal)
+      case "back":
+        await comeBack(code, token);
         break;
       case "next":
         await nextDeal(code, token);

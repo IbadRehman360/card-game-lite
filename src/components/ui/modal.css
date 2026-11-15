@@ -22,6 +22,41 @@
   --modal-ghost: linear-gradient(180deg, #2f2116, #261a11);
   --modal-ghost-hover: linear-gradient(180deg, #3a2a1a, #2e2014);
   --modal-orange: #b8762a;
+  /* the wood panel the menus use (game list rows, host settings): result cards sit on it too */
+  --modal-wood: linear-gradient(180deg, #2f2116, #261a11);
+  --modal-wood-edge: #b8762a;
+
+  /* dark letters on every gold button, the look of the home screen's Play:
+     Baloo at its heaviest, tight, with a light lip under the letters (embossed) */
+  --gold-label-ink: #2a170f;
+  --gold-label-weight: 800;
+  --gold-label-tracking: 0.035em;
+  --gold-label-emboss: 0 1px 0 rgba(255, 236, 180, 0.7), 0 -1px 0 rgba(90, 50, 10, 0.22);
+}
+
+/* ── one label for every gold button ──
+   New gold buttons can just add the class `gold-label`. The list below covers the existing ones
+   across menu and game CSS; `:root:root` + :is() keeps it above each screen's own button rule. */
+.gold-label,
+:root:root
+  :is(
+    .cta,
+    .home-btn-gold,
+    .title-prompt,
+    .result-next,
+    .pn-btn[data-kind="primary"],
+    .patti-btn[data-kind="chaal"],
+    .bh-play,
+    .gp-btn,
+    .nb-btn-gold,
+    .pwa-install,
+    .pwa-toast-go,
+    .shop-buy
+  ) {
+  font-weight: var(--gold-label-weight);
+  letter-spacing: var(--gold-label-tracking);
+  color: var(--gold-label-ink);
+  text-shadow: var(--gold-label-emboss);
 }
 
 /* ── reusable classes for new popups ── */
@@ -199,7 +234,7 @@ html[data-motion="reduce"] .modal-panel {
   width: 100%;
   height: 50px;
   border-radius: 12px;
-  font: 700 17px/1 var(--font-oswald), sans-serif;
+  font: 700 18px/1 var(--font-oswald), sans-serif;
   letter-spacing: 0.04em;
   text-transform: none;
   cursor: pointer;
@@ -209,8 +244,6 @@ html[data-motion="reduce"] .modal-panel {
 :root:root .pn-btn[data-kind="primary"] {
   background: var(--modal-gold);
   border: 2px solid #2a170f;
-  color: #140d02;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
   box-shadow: 0 4px 0 #4f2c08, 0 8px 16px rgba(0, 0, 0, 0.4);
 }
 :root:root .result-menu,

@@ -1,0 +1,130 @@
+/* the desi cast's round SVG busts (avatar.tsx) */
+.avatar {
+  display: block;
+  flex: none;
+  border-radius: 50%;
+  overflow: visible;
+}
+/* inside a seat's round frame the bust fills it */
+.portrait > .avatar {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── chai ── */
+.chai {
+  display: block;
+  overflow: visible;
+}
+.chai-steam path {
+  animation: chai-steam 2.8s ease-in-out infinite;
+}
+.chai-steam path + path {
+  animation-delay: 1.3s;
+}
+@keyframes chai-steam {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+html[data-motion="reduce"] .chai-steam path {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chai-steam path {
+    animation: none;
+  }
+}
+
+/* your chai by your seat, on the near rail of the table (stage, while a game is on) */
+.st-chai {
+  position: absolute;
+  left: max(2.5%, calc(env(safe-area-inset-left) + 10px));
+  bottom: 3%;
+  width: clamp(30px, 6.5vmin, 54px);
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.45));
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* a face next to each name in the table chat and on the results */
+.chat-who-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chat-who-row .avatar,
+.result-pfp {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+.result-pfp {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+/* ── a character seated at the table (seated.tsx): a slow breath, the head riding on it, a blink ── */
+.seated {
+  display: block;
+  overflow: visible;
+}
+.seated .sit-body {
+  transform-box: view-box;
+  transform-origin: 50% 92%;
+  animation: sit-breathe 3.8s ease-in-out infinite;
+  animation-delay: var(--sit-delay, 0s);
+}
+.seated .sit-head {
+  animation: sit-nod 3.8s ease-in-out infinite;
+  animation-delay: var(--sit-delay, 0s);
+}
+.seated[data-blink] .sit-eyes {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: sit-blink 5.2s linear infinite;
+  animation-delay: var(--sit-delay, 0s);
+}
+@keyframes sit-breathe {
+  50% {
+    transform: scaleY(1.014);
+  }
+}
+@keyframes sit-nod {
+  50% {
+    transform: translateY(-0.5px);
+  }
+}
+@keyframes sit-blink {
+  0%,
+  93%,
+  100% {
+    transform: none;
+  }
+  95.5% {
+    transform: scaleY(0.12);
+  }
+}
+html[data-motion="reduce"] .seated .sit-body,
+html[data-motion="reduce"] .seated .sit-head,
+html[data-motion="reduce"] .seated .sit-eyes {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .seated .sit-body,
+  .seated .sit-head,
+  .seated .sit-eyes {
+    animation: none;
+  }
+}

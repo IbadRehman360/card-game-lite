@@ -55,7 +55,7 @@ export const GAME_CARDS: { id: GameCardId; name: string; text: string; art: Reac
   {
     id: "rung",
     name: "Rung",
-    text: "Team up with your partner and win tricks",
+    text: "Win tricks with your partner",
     art: (
       <div className="gc-fan">
         <Card id="AS" r={-21} x={-70} y={6} />
@@ -68,7 +68,7 @@ export const GAME_CARDS: { id: GameCardId; name: string; text: string; art: Reac
   {
     id: "patti",
     name: "3 Patti",
-    text: "Bet coins on the best three cards",
+    text: "Bet on the best three cards",
     art: (
       <div className="gc-fan">
         <Card id="AH" r={-14} x={-46} y={4} />
@@ -82,7 +82,7 @@ export const GAME_CARDS: { id: GameCardId; name: string; text: string; art: Reac
   {
     id: "bluff",
     name: "Bluff",
-    text: "Lie about your cards, call out liars",
+    text: "Bluff, or call out the liar",
     art: (
       <div className="gc-fan">
         <Card back r={-16} x={-60} y={6} />
@@ -95,7 +95,7 @@ export const GAME_CARDS: { id: GameCardId; name: string; text: string; art: Reac
   {
     id: "paanch",
     name: "Paanch",
-    text: "Play cards to make five in a row",
+    text: "Get five chips in a row",
     art: (
       <div className="gc-board">
         <PaanchPreview />
@@ -105,7 +105,7 @@ export const GAME_CARDS: { id: GameCardId; name: string; text: string; art: Reac
   {
     id: "bhabhi",
     name: "Bhabhi",
-    text: "Get rid of all your cards first",
+    text: "Empty your hand first",
     art: (
       <div className="gc-fan">
         <Card id="9H" r={-24} x={-62} y={8} />
@@ -119,7 +119,7 @@ export const GAME_CARDS: { id: GameCardId; name: string; text: string; art: Reac
   {
     id: "gpatta",
     name: "G Patta",
-    text: "Throw pairs, don’t get stuck with the odd card",
+    text: "Pair up, dodge the odd card",
     art: (
       <div className="gc-fan">
         <Card id="7H" r={-12} x={-52} y={4} />
@@ -152,20 +152,13 @@ export function GameCard({
       autoFocus={autoFocus}
       onClick={onClick}
       aria-label={`${game.name}, ${seats} players`}
+      title={game.text}
     >
+      <b className="gc-name">{game.name}</b>
       <span className="gc-art">{game.art}</span>
-      <span className="gc-info">
-        <span className="gc-head">
-          <b className="gc-name">{game.name}</b>
-          <span className="gc-players" title={`${seats} players`}>
-            <svg viewBox="0 0 24 24" aria-hidden>
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z" />
-            </svg>
-            {seats}
-          </span>
-        </span>
-        <span className="gc-tag">{game.text}</span>
+      <span className="gc-players">{seats} players</span>
+      <span className="gc-play gold-label" aria-hidden>
+        Play
       </span>
     </button>
   );

@@ -1,0 +1,253 @@
+/* ─── The shop's Cards and Tables tabs: the coin packs' tiles, for backs and tables ───
+   The grid, tile size and scrolling are shared with the Coins tab (the sheet block at the end of shop.css). */
+
+/* the picture: a back keeps a real card's shape (5:7) and a table its 4:3, centred in the tile */
+.shop-body .shop-art.cs-art {
+  height: calc(var(--art-h, 84px) + 40px);
+}
+.cs-pic {
+  display: block;
+  flex: none;
+  filter: drop-shadow(0 6px 5px rgba(40, 18, 2, 0.45)) drop-shadow(0 1px 1px rgba(40, 18, 2, 0.5));
+  transition: scale 0.15s;
+}
+.cs-pic-back {
+  height: 100%;
+  width: auto;
+  aspect-ratio: 5 / 7;
+  max-width: 100%;
+  position: relative;
+  overflow: hidden;
+  /* circular corners: 9% of the width across, 6.4% of the height down (5:7) */
+  border-radius: 9% / 6.43%;
+  background: center / 100% 100% no-repeat;
+  /* a thin light inner border and a soft bevel */
+  box-shadow:
+    inset 0 0 0 1.5px rgba(255, 255, 255, 0.55),
+    inset 0 0 0 3px rgba(0, 0, 0, 0.22),
+    inset 0 2px 3px 3px rgba(255, 255, 255, 0.12),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.3);
+}
+/* a slight diagonal sheen */
+.cs-pic-back::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.06) 32%, transparent 48%, transparent 100%);
+  pointer-events: none;
+}
+.cs-art img.cs-pic-table,
+.cs-confirm-pic img.cs-pic-table {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  object-fit: contain;
+  border-radius: 8%;
+}
+.cs-tile:hover .cs-pic {
+  scale: 1.05;
+}
+/* shop.css sizes coin art by height; these pictures size themselves */
+.cs-art img.cs-pic {
+  min-height: 0;
+  max-height: none;
+}
+
+/* one gold button: the price, Use, or In use; the coin and number centred, in the buttons' bold label */
+/* (.shop-buy.cs-buy: shop.css's `all: unset` on .shop-buy must not win and drop the flex centring) */
+.shop-buy.cs-buy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: linear-gradient(#ffe27a, #f2b52a 55%, #c98712);
+}
+.cost-tag.cost-tag-plain {
+  gap: 5px;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  vertical-align: -0.15em;
+}
+.cost-tag.cost-tag-plain > svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+.cost-tag.cost-tag-plain b {
+  font-weight: 700;
+  color: #fff;
+}
+.shop-buy.cs-buy[data-state="use"] {
+  background: linear-gradient(#fff3c4, #f0cf7a 55%, #d9a43a);
+  color: #4a2a06;
+  text-shadow: none;
+}
+.shop-buy.cs-buy[data-state="inuse"] {
+  background: linear-gradient(#a6ef5a, #52b521 55%, #3c9414);
+}
+.shop-buy.cs-buy[data-state="inuse"]:disabled {
+  filter: none;
+  cursor: default;
+}
+
+/* ─── the confirm: over the whole sheet ─── */
+.cs-confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  border-radius: 18px;
+  font-family: var(--font-oswald), sans-serif;
+}
+.cs-confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(12, 7, 3, 0.72);
+  animation: shop-fade 0.15s ease-out both;
+}
+.cs-confirm-card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: min(320px, 100%);
+  padding: 18px 16px 16px;
+  border: 3px solid #b8762a;
+  border-radius: 16px;
+  background: linear-gradient(#2f2116, #261a11);
+  box-shadow: 0 6px 0 var(--ink), 0 18px 40px rgba(0, 0, 0, 0.6);
+  animation: shop-pop 0.22s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+.cs-confirm-pic {
+  display: flex;
+  justify-content: center;
+  height: 120px;
+  width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  background: radial-gradient(ellipse at 50% 40%, #fff7e2, #f1dcb0 70%, #ddbf86);
+}
+.cs-confirm-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  text-align: center;
+  color: #f4ecd8;
+}
+.cs-confirm-title .cost-tag-plain b {
+  color: #e8b04a;
+}
+.cs-confirm-short {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f4ecd8;
+  opacity: 0.85;
+}
+.cs-confirm-short b {
+  color: #ff8a6a;
+}
+.cs-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  margin-top: 4px;
+}
+.cs-confirm-actions .shop-buy {
+  width: 100%;
+  margin: 0;
+}
+.cs-cancel {
+  all: unset;
+  box-sizing: border-box;
+  padding: 5px 12px 8px;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  background: linear-gradient(#8f6a44, #5e4024);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.2), 0 4px 0 var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: #f4e2c4;
+  text-shadow: 0 2px 0 var(--ink);
+  cursor: pointer;
+}
+.cs-cancel:active {
+  translate: 0 3px;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.2), 0 1px 0 var(--ink);
+}
+.cs-cancel:focus-visible {
+  outline: 3px solid #fff3b0;
+  outline-offset: 3px;
+}
+html[data-motion="reduce"] .cs-confirm-backdrop,
+html[data-motion="reduce"] .cs-confirm-card {
+  animation: none;
+}
+
+/* five tabs: on phones they shrink and, if need be, scroll sideways rather than wrap */
+.shop-tabs {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.shop-tabs::-webkit-scrollbar {
+  display: none;
+}
+@media (max-width: 640px) {
+  .shop-tabs {
+    gap: 4px;
+  }
+  :root .shop-tabs button {
+    padding: 5px 8px 7px;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+  }
+}
+
+/* ─── the picked back on every face-down card in the app ───
+   Set by useApplyCardStyle (src/lib/card-style.ts) only for a back other than the free one, so the
+   games' own drawing of the free back is left exactly as it is. Only paint is changed here: no size,
+   no position. */
+:root[data-card-back] :is(.st-back, .gc-back, .bh-back, .bluff-back, .gp-back, .patti-back) {
+  background: var(--cb-img) center / 100% 100% no-repeat, #1a120b;
+}
+/* the house back's maroon and gold rings, drawn inside the edge, would clash with other colours */
+:root[data-card-back] .st-back {
+  box-shadow: none;
+}
+:root[data-card-back] .st-ddeck .st-back {
+  box-shadow:
+    1px 2px 0 #e6dcc4,
+    2px 4px 0 #e6dcc4,
+    3px 6px 0 #d4c8ac,
+    3px 8px 4px rgba(0, 0, 0, 0.45);
+}
+:root[data-card-back] .patti-back {
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+}
+/* the table's warm grade is tuned for the wine back; the others only get a little lift */
+:root[data-card-back] :is(.st-play, .st-bluff, .st-dcard) .st-back {
+  filter: brightness(1.1);
+}
+
+/* ─── the picked table's felt on Paanch's board (drawn in CSS, over the room) ───
+   Set by useApplyCardStyle only for a theme other than the free one. */
+:root[data-table-theme] .paanch {
+  --felt-hi: var(--tt-felt-hi);
+  --felt: var(--tt-felt);
+  --felt-lo: var(--tt-felt-lo);
+}

@@ -140,7 +140,7 @@ export function MenuScreen({
               <svg className="home-btn-icon" viewBox="0 0 24 24" aria-hidden fill="currentColor">
                 <path d="M7 4.2v15.6c0 .9 1 1.5 1.8 1L20.4 13a1.2 1.2 0 0 0 0-2L8.8 3.2C8 2.7 7 3.3 7 4.2Z" />
               </svg>
-              Play vs computer
+              Play
             </button>
             <button
               type="button"
@@ -150,12 +150,6 @@ export function MenuScreen({
                 setHostFor(game);
               }}
             >
-              <svg className="home-btn-icon" viewBox="0 0 24 24" aria-hidden fill="currentColor">
-                <circle cx="9" cy="7.6" r="3.6" />
-                <path d="M2 20.2c0-3.9 3.1-6.8 7-6.8s7 2.9 7 6.8c0 .5-.4.8-.8.8H2.8c-.4 0-.8-.3-.8-.8Z" />
-                <circle cx="16.8" cy="8.4" r="2.9" opacity="0.6" />
-                <path d="M17.6 21h3.6c.4 0 .8-.3.8-.8 0-3.2-2.3-5.6-5.4-5.9a8.4 8.4 0 0 1 1 6.7Z" opacity="0.6" />
-              </svg>
               Host a game
               {coin}
             </button>

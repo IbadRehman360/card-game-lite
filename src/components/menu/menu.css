@@ -337,7 +337,8 @@
   display: grid;
   grid-template-rows: 1fr auto;
   justify-items: center;
-  padding: 0 16px max(34px, calc(env(safe-area-inset-bottom) + 24px));
+  /* lifted a little off the bottom edge so the prompt sits on the dark band, not on the table legs */
+  padding: 0 16px calc(max(34px, calc(env(safe-area-inset-bottom) + 24px)) + 2vh);
   cursor: pointer;
 }
 .title-logo {
@@ -368,45 +369,6 @@
 @keyframes prompt-bob {
   50% {
     transform: translateY(-5px);
-  }
-}
-
-.picker .arrow-button[data-hidden="true"] {
-  visibility: hidden;
-}
-
-/* the select screen's confirm: plain text, no plate */
-.select-go {
-  all: unset;
-  box-sizing: border-box;
-  align-self: center;
-  padding: 10px 22px;
-  cursor: pointer;
-  font-family: var(--font-oswald), sans-serif;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--gold-hi);
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
-  animation: select-pulse 1.6s ease-in-out infinite;
-}
-.select-go:focus-visible {
-  outline: 2px solid var(--gold-hi);
-  outline-offset: 2px;
-  border-radius: 8px;
-}
-.select-go:active {
-  transform: scale(0.96);
-}
-@keyframes select-pulse {
-  50% {
-    opacity: 0.55;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .select-go {
-    animation: none;
   }
 }
 
@@ -653,109 +615,6 @@ kbd + kbd {
   margin-left: -2px;
 }
 
-/* ─── character select ─── */
-
-.select {
-  position: absolute;
-  inset: 0;
-}
-.select-foot {
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  bottom: calc(env(safe-area-inset-bottom) + clamp(28px, 5vh, 56px));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-}
-.picker {
-  display: grid;
-  grid-template-columns: 64px 1fr 64px;
-  align-items: center;
-  gap: 16px;
-  width: min(680px, 100%);
-}
-.picker .arrow-button {
-  width: 54px;
-  height: 54px;
-}
-.picker-id {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 0;
-}
-.picker-name {
-  margin: 0;
-  font-family: var(--font-oswald), sans-serif;
-  font-weight: 700;
-  font-size: clamp(48px, 5.6vw, 88px);
-  line-height: 0.95;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--bone);
-  -webkit-text-stroke: 3px var(--ink);
-  paint-order: stroke fill;
-  text-shadow:
-    0 6px 0 var(--ink),
-    0 14px 30px rgba(0, 0, 0, 0.8);
-  white-space: nowrap;
-  animation: name-in 0.35s var(--ease-out) both;
-}
-@keyframes name-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.96);
-  }
-}
-.picker-role {
-  margin: 12px 0 0;
-  padding: 6px 14px;
-  font-family: var(--font-oswald), sans-serif;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink);
-  background: var(--accent);
-  border: 3px solid var(--ink);
-  border-radius: 6px;
-  box-shadow: 0 4px 0 var(--ink);
-}
-
-.pips {
-  display: flex;
-  gap: 4px;
-}
-.pip {
-  all: unset;
-  box-sizing: border-box;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 30px;
-  cursor: pointer;
-}
-.pip::before {
-  content: "";
-  width: 12px;
-  height: 12px;
-  transform: rotate(45deg);
-  background: #3a2c14;
-  border: 2px solid var(--ink);
-  transition:
-    background 0.2s,
-    transform 0.2s;
-}
-.pip[aria-checked="true"]::before {
-  background: var(--accent);
-  transform: rotate(45deg) scale(1.35);
-}
-.pip:focus-visible {
-  outline: 3px solid var(--gold-hi);
-}
-
 /* ─── modal panels ─── */
 
 .sheet {
@@ -862,79 +721,7 @@ kbd + kbd {
   overscroll-behavior: contain;
 }
 
-/* how to play */
-.rules {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-.rule {
-  display: grid;
-  grid-template-columns: 40px 1fr;
-  column-gap: 12px;
-  align-items: start;
-  padding: 12px 14px;
-  background: var(--slab);
-  border-radius: 8px;
-}
-.rule-suit {
-  grid-row: span 2;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 48px;
-  font-size: 24px;
-  line-height: 1;
-  color: var(--ink);
-  background: var(--bone);
-  border: 2px solid var(--ink);
-  border-radius: 5px;
-}
-.rule[data-red="true"] .rule-suit {
-  color: #c8202e;
-}
-.rule h3 {
-  margin: 0 0 3px;
-  font-family: var(--font-oswald), sans-serif;
-  font-weight: 700;
-  font-size: 19px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--gold);
-}
-.rule p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #e3d6b8;
-}
-
-/* settings */
-.settings {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.setting {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 56px;
-  padding: 0 14px;
-  background: var(--slab);
-  border-radius: 8px;
-}
-.setting-stack {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-  padding: 12px 14px 14px;
-}
-.setting-label,
+/* settings (the calm list itself is styled near the end of this file) */
 .field-label {
   font-family: var(--font-oswald), sans-serif;
   font-size: 17px;
@@ -1194,26 +981,16 @@ kbd + kbd {
         rgba(6, 4, 2, 0.9) 100%
       );
   }
-  .room[data-scene="select"] .stage-shade {
-    background:
-      radial-gradient(
-        130% 80% at 50% 35%,
-        transparent 50%,
-        rgba(6, 4, 2, 0.8) 100%
-      ),
-      linear-gradient(
-        180deg,
-        rgba(6, 4, 2, 0.6) 0%,
-        transparent 14%,
-        transparent 52%,
-        rgba(6, 4, 2, 0.95) 74%
-      );
-  }
+  
 
   .title-logo {
     width: min(62vw, 270px);
     align-self: start;
     margin-top: calc(env(safe-area-inset-top) + 9vh);
+  }
+  /* phones: about 5% of the screen higher, just under the table rail */
+  .title {
+    padding-bottom: calc(max(34px, calc(env(safe-area-inset-bottom) + 24px)) + 5dvh);
   }
 
   .menu {
@@ -1234,50 +1011,17 @@ kbd + kbd {
     display: none;
   }
 
-  .select-foot {
-    gap: 8px;
-  }
-  .picker {
-    grid-template-columns: 40px 1fr 40px;
-    gap: 6px;
-  }
-  .picker .arrow-button {
-    width: 40px;
-    height: 40px;
-  }
-  .picker-name {
-    font-size: clamp(30px, 9vw, 42px);
-  }
-  .picker-role {
-    font-size: 11.5px;
-    margin-top: 6px;
-    padding: 4px 10px;
-  }
-  .pip {
-    height: 24px;
-  }
-  .select .cta {
-    width: 100%;
-    min-width: 0;
-    height: 46px;
-    font-size: 19px;
-  }
+  
+  
+  
+  
+  
+  
+  
   /* smaller corner buttons on phones */
   .icon-button {
     width: 44px;
     height: 44px;
-  }
-
-  .rules {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-  .rule {
-    padding: 10px 12px;
-  }
-  .rule p {
-    font-size: 12.5px;
-    line-height: 1.45;
   }
   .sheet-body {
     padding: 16px;
@@ -1318,36 +1062,13 @@ kbd + kbd {
     right: calc(env(safe-area-inset-right) + 72px);
   }
 
-  .select-foot {
-    flex-direction: row;
-    justify-content: center;
-    gap: 18px;
-    bottom: calc(env(safe-area-inset-bottom) + 18px);
-  }
-  .picker {
-    width: min(440px, 60%);
-    grid-template-columns: 48px 1fr 48px;
-  }
-  .picker .arrow-button {
-    width: 48px;
-    height: 48px;
-  }
-  .picker-name {
-    font-size: 42px;
-  }
-  .picker-role {
-    margin-top: 6px;
-    font-size: 13px;
-    padding: 3px 10px;
-  }
-  .pips {
-    display: none;
-  }
-  .select .cta {
-    height: 54px;
-    min-width: 180px;
-    font-size: 22px;
-  }
+  
+  
+  
+  
+  
+  
+  
 
   .sheet {
     padding: 8px;
@@ -1365,18 +1086,8 @@ kbd + kbd {
   .sheet-body {
     padding: 12px 16px 14px;
   }
-  .rules {
-    gap: 8px;
-  }
-  .rule {
-    padding: 8px 10px;
-  }
-  .rule p {
-    font-size: 12px;
-    line-height: 1.4;
-  }
-  .setting {
-    min-height: 46px;
+  .set-row {
+    min-height: 52px;
   }
   .multi-or {
     margin: 10px 0 8px;
@@ -1863,75 +1574,6 @@ kbd + kbd {
 .lobby-back,
 .lobby-live {
   background: #1d150e;
-}
-
-/* character name: lighter shadow and room before the role tag */
-.picker-name {
-  -webkit-text-stroke: 2px var(--ink);
-  text-shadow: 0 3px 0 rgba(22, 17, 14, 0.85), 0 6px 14px rgba(0, 0, 0, 0.35);
-}
-.picker-role {
-  margin-top: 18px;
-  box-shadow: 0 3px 0 rgba(22, 17, 14, 0.7);
-}
-@media (max-width: 760px), (max-height: 520px) {
-  .picker-role {
-    margin-top: 12px;
-  }
-}
-
-/* select: a proper gold button instead of blinking text */
-.select-go {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-width: 220px;
-  padding: 13px 30px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #ffd873 0%, #f2c14e 55%, #d9a332 100%);
-  color: #16110e;
-  font-size: 18px;
-  letter-spacing: 0.14em;
-  text-shadow: none;
-  border: 2px solid #16110e;
-  box-shadow: 0 4px 0 #16110e, 0 10px 24px rgba(242, 193, 78, 0.28);
-  animation: select-glow 2s ease-in-out infinite;
-  transition: transform 0.12s, box-shadow 0.12s, filter 0.12s;
-}
-.select-go:hover {
-  filter: brightness(1.06);
-  transform: translateY(-1px);
-}
-.select-go:active {
-  transform: translateY(3px);
-  box-shadow: 0 1px 0 #16110e, 0 4px 12px rgba(242, 193, 78, 0.2);
-}
-.select-go::after {
-  content: "";
-  width: 9px;
-  height: 9px;
-  border-right: 3px solid currentColor;
-  border-bottom: 3px solid currentColor;
-  transform: rotate(-45deg);
-  margin-left: 2px;
-}
-@keyframes select-glow {
-  50% {
-    box-shadow: 0 4px 0 #16110e, 0 10px 30px rgba(242, 193, 78, 0.55);
-  }
-}
-@media (max-width: 760px), (max-height: 520px) {
-  .select-go {
-    min-width: 180px;
-    padding: 10px 22px;
-    font-size: 15px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .select-go {
-    animation: none;
-  }
 }
 
 /* ── lobby, final look: warm wood panels, coloured team trays, seat cards in the character colour ── */
@@ -3137,51 +2779,73 @@ html[data-motion="reduce"] .gc {
   flex: none;
 }
 
-/* row text: slightly smaller, with more air between the lines */
+/* rows: one height for all, a quiet 1px edge, name and player count on one baseline,
+   then a short muted line of what you do (wraps to a second line rather than cutting off) */
+.games {
+  gap: 8px;
+}
 .gc {
   /* the price column is gone, so don't leave an empty gap for it on the right */
   grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 6px 12px 6px 6px;
+  border: 1px solid rgba(184, 118, 42, 0.5);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
 }
-.gc-info {
-  gap: 6px;
+.gc:hover,
+.gc:focus-visible {
+  border-color: rgba(242, 160, 61, 0.85);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(242, 160, 61, 0.18);
+}
+.gc .gc-info {
+  align-self: center;
+  gap: 4px;
   padding-right: 2px;
 }
-.gc-name {
-  font-size: clamp(16px, 2.2dvh, 20px);
-  letter-spacing: 0.06em;
+.gc .gc-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 700 clamp(16px, 2.1dvh, 19px) / 1.1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.04em;
 }
-.gc-tag {
-  font-size: clamp(12px, 1.6dvh, 13.5px);
-  font-weight: 400;
-  line-height: 1.4;
-  letter-spacing: 0.03em;
-  color: rgba(244, 236, 216, 0.62);
+.gc .gc-tag {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  font: 500 clamp(12.5px, 1.6dvh, 14px) / 1.3 var(--font-oswald), sans-serif;
+  letter-spacing: 0.01em;
+  color: rgba(244, 236, 216, 0.58);
 }
 .gc-head {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: baseline;
+  gap: 8px;
   min-width: 0;
 }
-.gc-players {
+/* plain soft-gold text with a small person, no pill */
+.gc .gc-players {
   flex: none;
   display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  align-items: baseline;
+  gap: 3px;
   margin: 0;
-  padding: 3px 8px 3px 6px;
-  border-radius: 999px;
-  background: rgba(242, 193, 78, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(242, 193, 78, 0.28);
-  font-size: 11.5px;
-  line-height: 1;
-  letter-spacing: 0.04em;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  font: 600 13px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.02em;
+  color: rgba(242, 193, 78, 0.75);
   opacity: 1;
 }
 .gc-players svg {
   width: 11px;
   height: 11px;
   fill: currentColor;
+  align-self: center;
+  translate: 0 -1px;
 }
 
 /* Rung / 3 Patti step: wider, and the same look as the game list (brown, orange edge, Oswald) */
@@ -3198,18 +2862,49 @@ html[data-motion="reduce"] .gc {
 .home-btn-gold {
   border: 2px solid #2a170f;
 }
-/* button labels: a touch wider tracking so the condensed caps breathe, and solid icons */
+/* button labels: Baloo at its heaviest, bigger and tighter, so Play reads bold and pressed into the gold.
+   Three classes deep so the phone (16px) and short-screen (18px) .home-btn sizes above can't win. */
 .home-body:not(.home-games) .home-btn {
-  font-weight: 700;
-  letter-spacing: 0.07em;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 21px;
+  line-height: 1;
+  letter-spacing: 0.035em;
+}
+.home-body:not(.home-games) .home-btn-gold {
+  color: #2a170f;
+  /* light lip under the letters, faint shade above: embossed */
+  text-shadow:
+    0 1px 0 rgba(255, 236, 180, 0.7),
+    0 -1px 0 rgba(90, 50, 10, 0.22);
+}
+.home-body:not(.home-games) .home-btn-ghost {
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55);
 }
 .home-btn .home-btn-icon {
   flex: none;
   width: 22px;
   height: 22px;
 }
+.home-body:not(.home-games) .home-btn .home-btn-icon {
+  width: 23px;
+  height: 23px;
+  margin-top: -1px;
+}
 .home-btn-gold .home-btn-icon {
   filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.35));
+}
+.home-body:not(.home-games) .home-btn-gold .home-btn-icon {
+  filter: drop-shadow(0 1px 0 rgba(255, 236, 180, 0.7));
+}
+.home-body:not(.home-games) .home-btn-ghost .home-btn-icon {
+  color: #e8b04a;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.5));
+}
+@media (max-height: 560px) {
+  .home-body:not(.home-games) .home-btn {
+    font-size: 19px;
+  }
 }
 .home-btn-ghost {
   --edge: rgba(0, 0, 0, 0.5);
@@ -3348,70 +3043,6 @@ html[data-motion="reduce"] .gc {
   border-color: #e0573c;
 }
 
-/* character pick: name, a gold role line, the pips, then Select, all evenly spaced in the app colours */
-.select-foot {
-  gap: 18px;
-}
-.picker-id {
-  gap: 10px;
-}
-.picker-role {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  background: none;
-  border: 0;
-  box-shadow: none;
-  color: #f2c14e;
-  font: 600 14px/1 var(--font-oswald), sans-serif;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
-}
-.picker-role::before,
-.picker-role::after {
-  content: "";
-  width: 34px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(242, 193, 78, 0.75));
-}
-.picker-role::after {
-  background: linear-gradient(270deg, transparent, rgba(242, 193, 78, 0.75));
-}
-.pips {
-  gap: 2px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: rgba(29, 21, 14, 0.75);
-  border: 1px solid rgba(184, 118, 42, 0.45);
-}
-.pip {
-  width: 28px;
-  height: 22px;
-}
-.pip::before {
-  width: 9px;
-  height: 9px;
-  background: #3a2c14;
-  border: 1.5px solid #b8762a;
-}
-.pip[aria-checked="true"]::before {
-  background: #ffd873;
-  border-color: #ffd873;
-  box-shadow: 0 0 8px rgba(255, 216, 115, 0.6);
-}
-@media (max-width: 760px), (max-height: 520px) {
-  .picker-role {
-    margin: 0;
-    font-size: 12.5px;
-  }
-  .select-foot {
-    gap: 14px;
-  }
-}
-
 /* press feedback on every button in the menu and the lobby */
 :where(.menu, .lobby) :where(button:not(:disabled), a):active {
   scale: 0.96;
@@ -3440,23 +3071,6 @@ html[data-motion="reduce"] .gc {
   width: 100%;
   height: 100%;
   border-radius: inherit;
-}
-
-/* character pick, lighter: smaller name, bare diamond pips (no box behind them) */
-.picker-name {
-  font-size: clamp(32px, 4vw, 60px);
-  -webkit-text-stroke: 1.5px var(--ink);
-}
-@media (max-width: 760px), (max-height: 520px) {
-  .picker-name {
-    font-size: clamp(26px, 7vw, 34px);
-  }
-}
-.pips {
-  padding: 0;
-  background: none;
-  border: 0;
-  box-shadow: none;
 }
 
 /* ─── home list on narrow phones (iPhone 15 and smaller): six clean rows that always fit ───
@@ -3514,7 +3128,7 @@ html[data-motion="reduce"] .gc {
   }
 }
 
-/* ─── how to play: one game at a time, four short lines, never scrolls ─── */
+/* ─── how to play: the game picker (the guide itself is in how-to-play.css) ─── */
 .rules-games {
   gap: 8px 6px;
   margin-bottom: 14px;
@@ -3523,97 +3137,104 @@ html[data-motion="reduce"] .gc {
   padding: 9px 6px;
   font-size: 14px;
 }
-.rules {
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-.rule {
-  grid-template-columns: 30px 1fr;
-  column-gap: 10px;
-  align-items: center;
-  padding: 9px 12px;
-  border-radius: 10px;
-}
-.rule-suit {
-  width: 30px;
-  height: 34px;
-  font-size: 20px;
-}
-.rule h3 {
-  margin: 0 0 2px;
-  font-size: 15px;
-}
-.rule p {
-  font: 400 13.5px/1.3 var(--font-oswald), sans-serif;
-  letter-spacing: 0.01em;
-}
-.rules-coins {
-  margin: 12px 0 0;
-  text-align: center;
-  font: 500 12.5px/1.3 var(--font-oswald), sans-serif;
-  letter-spacing: 0.04em;
-  color: rgba(242, 193, 78, 0.85);
-}
-/* wide enough: two columns of two */
-@media (min-width: 640px) {
-  .rules {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-/* short sideways phones: two columns, tighter */
+/* short sideways phones: a tighter picker */
 @media (max-height: 520px) {
-  .rules {
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-  }
-  .rule {
-    padding: 6px 10px;
-  }
-  .rule-suit {
-    height: 26px;
-    font-size: 17px;
-  }
-  .rule h3 {
-    font-size: 13.5px;
-  }
-  .rule p {
-    font-size: 12.5px;
-  }
   .rules-games {
     margin-bottom: 8px;
   }
-  .rules-coins {
-    margin-top: 8px;
-  }
 }
 
-/* settings: the name field in the dark wood style of the other inputs */
-:root .setting .text-field {
-  width: 100%;
-  height: 48px;
-  box-sizing: border-box;
+/* ─── settings: two small headings, one wood card each, calm rows split by hairlines ─── */
+.settings {
+  display: grid;
+  gap: 18px;
+}
+.set-head {
+  margin: 0 0 8px 4px;
+  font: 700 13px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.04em;
+  color: #e8b04a;
+}
+.set-card {
   padding: 0 14px;
-  border-radius: 12px;
-  border: 1.5px solid #b8762a;
+  border-radius: 14px;
   background: linear-gradient(180deg, #2f2116, #261a11);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(184, 118, 42, 0.45);
+}
+.set-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 60px;
+  padding: 10px 0;
+}
+.set-row + .set-row {
+  border-top: 1px solid rgba(244, 236, 216, 0.08);
+}
+label.set-row {
+  cursor: pointer;
+}
+.set-row[data-stack] {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 12px 0 14px;
+}
+.set-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.set-label {
+  font: 600 16.5px/1.25 var(--font-oswald), sans-serif;
   color: #f4ecd8;
-  font: 600 17px/1 var(--font-oswald), sans-serif;
-  letter-spacing: 0.03em;
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
 }
-:root .setting .text-field::placeholder {
-  color: rgba(244, 236, 216, 0.4);
+.set-hint {
+  font: 500 12.5px/1.3 var(--font-oswald), sans-serif;
+  color: rgba(244, 236, 216, 0.5);
 }
-:root .setting .text-field:focus {
-  border-color: #f2a03d;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(242, 160, 61, 0.22);
+/* the graphics picker: the lobby's gold pill switch, in sentence case and a little shorter */
+.settings .lobby-switch {
+  margin-top: 0;
 }
-:root .setting-stack .setting-label {
-  color: #f2c14e;
-  font-size: 12.5px;
-  letter-spacing: 0.12em;
+.settings .lobby-switch button {
+  height: 36px;
+  font: 700 14.5px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+/* quieter switch: no ink outline, gold when on */
+.settings .switch {
+  width: 48px;
+  height: 28px;
+  border: 0;
+  background: #120c07;
+  box-shadow: inset 0 0 0 1px rgba(242, 193, 78, 0.22);
+}
+.settings .switch::before {
+  top: 4px;
+  left: 4px;
+  background: rgba(244, 236, 216, 0.55);
+}
+.settings .switch:checked {
+  background: linear-gradient(180deg, #ffd873, #e8b04a);
+  box-shadow: none;
+}
+.settings .switch:checked::before {
+  transform: translateX(20px);
+  background: #2a170f;
+}
+.settings .switch:focus-visible {
+  outline: 2px solid var(--gold-hi);
+  outline-offset: 2px;
+}
+.settings .range-wrap {
+  width: min(190px, 52%);
+}
+.settings .range-value {
+  color: rgba(244, 236, 216, 0.7);
 }
 
 /* ─── home: the game you picked, above the three ways to play ─── */
@@ -3818,4 +3439,114 @@ html[data-motion="reduce"] .gc {
   .room[data-scene="play"] .corner-back {
     left: calc(env(safe-area-inset-left) + var(--gut) + 16px);
   }
+}
+
+/* ─── game list: tiles in the shop's look (cream panel, ink outline, name on top, art in a dark-red well, gold Play) ─── */
+.games-panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.games-panel .games {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: auto;
+  gap: 11px;
+  padding: 0 4px 4px;
+}
+@media (min-aspect-ratio: 4/5) {
+  .games-panel .games {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: auto;
+  }
+}
+.games-panel .gc {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 8px 10px;
+  border: 3px solid var(--ink, #2a170f);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #3a291b, #2a1d13);
+  box-shadow: inset 0 0 0 1px rgba(242, 193, 78, 0.35), inset 0 -4px 0 rgba(0, 0, 0, 0.25), 0 4px 0 rgba(0, 0, 0, 0.45);
+  color: #f4ecd8;
+  transition: scale 0.12s ease;
+}
+.games-panel .gc:hover,
+.games-panel .gc:focus-visible {
+  background: linear-gradient(180deg, #45311f, #312216);
+  box-shadow: inset 0 0 0 1px rgba(242, 193, 78, 0.6), inset 0 -4px 0 rgba(0, 0, 0, 0.25), 0 4px 0 rgba(0, 0, 0, 0.45);
+}
+.games-panel .gc:focus-visible {
+  outline: 3px solid #ffd75e;
+  outline-offset: 2px;
+}
+.games-panel .gc:active {
+  translate: none;
+  scale: 0.96;
+}
+/* the art leads; the name sits under it in the app's outlined title type (like BAAZI / SHOP) */
+.games-panel .gc {
+  position: relative;
+  gap: 0;
+  padding: 7px 7px 9px;
+}
+.games-panel .gc-art {
+  order: 1;
+  flex: none;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  aspect-ratio: 4 / 3;
+  border: 2px solid var(--ink, #2a170f);
+  border-radius: 9px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+.games-panel .gc-name {
+  order: 2;
+  max-width: 100%;
+  margin: 8px 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 800 20px/1.1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #fff6e2;
+  text-shadow:
+    -2px -2px 0 #2a170f, 2px -2px 0 #2a170f, -2px 2px 0 #2a170f, 2px 2px 0 #2a170f,
+    0 -2px 0 #2a170f, 0 2px 0 #2a170f, -2px 0 0 #2a170f, 2px 0 0 #2a170f, 0 3px 0 #2a170f;
+}
+/* the player count: a small ink chip on the art's top corner */
+.games-panel .gc-players {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  margin: 0;
+  padding: 3px 7px 4px;
+  border-radius: 999px;
+  background: rgba(42, 23, 15, 0.82);
+  font: 700 11px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: #ffd873;
+  opacity: 1;
+}
+.games-panel .gc-play {
+  order: 3;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: auto;
+  padding: 7px 10px 9px;
+  border: 3px solid var(--ink, #2a170f);
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold) 50%, var(--gold-deep));
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.4), inset 0 -4px 0 rgba(0, 0, 0, 0.18), 0 4px 0 var(--ink, #2a170f);
+  font: 800 17px/1.1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
 }

@@ -29,9 +29,10 @@ export function PattiTable({ table }: { table: PattiStageTable }) {
       {([1, 2, 3] as Seat[]).map((s) =>
         state.dealNo > 0 && !state.players[s].out
           ? [0, 1, 2].map((i) => {
-              const base = toward(s, 0.78);
+              // the player across keeps their cards up by their own edge, clear of the pot
+              const base = toward(s, s === 2 ? 1.02 : 0.78);
               const side = s % 2 === 1;
-              const off = (i - 1) * 4.2;
+              const off = (i - 1) * 3.5;
               const at: [number, number] = side ? [base[0], base[1] + off * 1.6] : [base[0] + off, base[1]];
               return (
                 <TableCard

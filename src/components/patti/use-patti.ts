@@ -75,8 +75,12 @@ export function usePatti(paused: boolean): PattiGame {
       try {
         session.current = (await openSolo("patti", rules.startChips)).session;
       } catch (e) {
-        coinFail(e);
-        return false;
+        // no signal: play on this phone anyway, with nothing to cash out
+        if (!(e instanceof CoinError && e.status === 0)) {
+          coinFail(e);
+          return false;
+        }
+        session.current = null;
       }
       const fresh = newTable(rules, [rules.startChips, rules.startChips, rules.startChips, rules.startChips], ((Math.random() * 4) | 0) as Seat);
       chipsNow.current = rules.startChips;
@@ -132,12 +136,14 @@ export function usePatti(paused: boolean): PattiGame {
   }, []);
 
   const rebuy = useCallback(async () => {
-    if (!session.current) return;
-    try {
-      await soloRebuy(session.current);
-    } catch (e) {
-      coinFail(e);
-      return;
+    // (a game started with no signal has no session: its chips are free, and so is buying back in)
+    if (session.current) {
+      try {
+        await soloRebuy(session.current);
+      } catch (e) {
+        coinFail(e);
+        return;
+      }
     }
     setState((s) => {
       if (!s) return s;

@@ -99,12 +99,27 @@ export function createRoom(name: string, options: GameOptions, avatar?: string) 
   return api<JoinResponse>("/api/rooms", { method: "POST", body: JSON.stringify({ name, options, avatar }) });
 }
 
+/** Play: a seat at a quick-match table for this game (people searching for it, then players the server finds). */
+export function joinQuick(game: string, name: string, avatar?: string) {
+  return api<JoinResponse>("/api/match", { method: "POST", body: JSON.stringify({ action: "join", game, name, avatar }) });
+}
+
 export function joinRoom(code: string, name: string, token?: string | null, avatar?: string) {
   return api<JoinResponse>(`/api/rooms/${code}`, {
     method: "POST",
     token,
     body: JSON.stringify({ action: "join", name, avatar }),
   });
+}
+
+/** One look at a table this phone sat at (to offer going back to it). Throws an ApiFailure (403/404: it's gone). */
+export function peekRoom(code: string, token: string) {
+  return api<RoomView>(`/api/rooms/${code}`, { token });
+}
+
+/** Get up from a table without having it open (the Leave on the rejoin prompt). */
+export function leaveTableRequest(code: string, token: string) {
+  return api<{ ok: boolean }>(`/api/rooms/${code}`, { method: "POST", token, body: JSON.stringify({ action: "leave" }) });
 }
 
 /** Live view of one online table: fetches this player's view and refreshes whenever the table changes. */
@@ -217,10 +232,45 @@ export function useOnlineRoom(code: string | null, token: string | null) {
     return () => clearTimeout(t);
   }, [awayDue, token, code, accept, refresh]);
 
+  // A quick-match table filling up: ask about it every second and a half. That keeps this phone's seat,
+  // shows the seats filling, and the poll that finds the table full starts the game. Several polls in a
+  // row that can't reach the server mean the search is lost (the menu then plays on this phone instead).
+  const filling = Boolean(room?.match);
+  const [matchLost, setMatchLost] = useState(false);
+  useEffect(() => {
+    if (!code || !token || !filling) return;
+    let misses = 0;
+    let stopped = false;
+    const poll = async () => {
+      try {
+        const res = await api<{ view?: RoomView }>("/api/match", { method: "POST", token, body: JSON.stringify({ action: "poll", code }) });
+        misses = 0;
+        if (res.view && !stopped) accept(res.view);
+      } catch (e) {
+        const err = e as ApiFailure;
+        if (err.status === 403 || err.status === 404) void refresh();
+        else if (err.status === 0 && ++misses >= 4 && !stopped) setMatchLost(true);
+      }
+    };
+    const t = window.setInterval(() => void poll(), 1500);
+    return () => {
+      stopped = true;
+      window.clearInterval(t);
+    };
+  }, [code, token, filling, accept, refresh]);
+  // the search is over (or a new one began): forget a lost one
+  useEffect(() => {
+    if (!matchLost || filling) return;
+    const t = window.setTimeout(() => setMatchLost(false), 0);
+    return () => window.clearTimeout(t);
+  }, [matchLost, filling]);
+
   useEffect(() => {
     if (!code || !token) return;
     latest.current = -1;
     goneRef.current = false;
+    inFlight.current = null;
+    again.current = false;
     backoffUntil.current = 0;
     const initial = setTimeout(() => {
       setGone(false);
@@ -355,12 +405,57 @@ export function useOnlineRoom(code: string | null, token: string | null) {
     [code, token, refresh, accept, setError],
   );
 
-  return { room: code && token ? room : null, error, pending, live, gone, act, chat, sendChat, clearError: () => {
+  // A quick-match Rung table: the other players move when their thinking time is up, and any phone at the
+  // table asks the server for that move then (the server checks its own clock). A little later from each
+  // phone, so they don't all ask at once.
+  // At a table with friends the same clock covers a player whose phone dropped out (closed, reloading,
+  // lost signal): their seat stays theirs, and a card is played for them until they're back.
+  const rungDue = room?.status === "playing" && room.game && !room.game.result ? room.turnDeadlineIn : null;
+  const rungVersion = room?.version ?? -1;
+  useEffect(() => {
+    if (rungDue == null || !code || !token) return;
+    const t = window.setTimeout(() => void act("timeout"), rungDue + 250 + Math.random() * 300);
+    return () => window.clearTimeout(t);
+  }, [rungDue, rungVersion, code, token, act]);
+
+  // Back at the table after dropping out (reload, rejoin, phone woken up): the server was moving for this
+  // seat on a short clock; tell it someone is here again. Once per return, so a player who is simply slow
+  // still gets moved for (a card they play clears it too).
+  const dropped = !!(room?.code === code && room?.dropped);
+  const returned = useRef(true);
+  useEffect(() => {
+    const wake = () => {
+      if (document.visibilityState === "visible") returned.current = true;
+    };
+    document.addEventListener("visibilitychange", wake);
+    return () => document.removeEventListener("visibilitychange", wake);
+  }, []);
+  useEffect(() => {
+    returned.current = true;
+  }, [code, token]);
+  useEffect(() => {
+    if (!room || room.code !== code) return;
+    if (!dropped) {
+      returned.current = false;
+      return;
+    }
+    if (!returned.current || !code || !token) return;
+    returned.current = false;
+    api<{ view?: RoomView }>(`/api/rooms/${code}`, { method: "POST", token, body: JSON.stringify({ action: "back" }) })
+      .then((res) => res.view && accept(res.view))
+      .catch(() => {});
+  }, [room, dropped, code, token, accept]);
+
+  // a view of the table this phone was at before (another code, or the same code with another seat) never shows
+  const current = code && token && room?.code === code && !gone ? room : null;
+  return { room: current, error, pending, live, gone, act, chat: current ? chat : NO_CHAT, sendChat, matchLost: matchLost && filling, clearError: () => {
       setError(null);
       setLoadError(null);
     },
   };
 }
+
+const NO_CHAT: LiveChatMessage[] = [];
 
 /** Moves any phone at the table may send for someone else; they never block the player's own. */
 const AUTO_ACTIONS = new Set(["tick", "timeout", "reap"]);

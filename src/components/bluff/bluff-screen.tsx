@@ -14,7 +14,8 @@ import {
 import { sfx } from "@/lib/sfx";
 import { seatTags } from "@/components/stage/anchors";
 import { CardFace } from "@/components/game/playing-card";
-import { Portrait } from "@/components/game/portrait";
+import { Portrait, SeatCount } from "@/components/game/portrait";
+import { Avatar } from "@/components/avatars/avatar";
 import { Burst, EmoteButton, EmoteDeck, type LiveChat, useEmotes } from "@/components/game/emotes";
 import { useChatSound } from "@/components/game/chat";
 import { BLUFF_TURN_SECONDS, type BluffGame, SHOT_AT_MS, SHOT_LANDS_MS } from "./use-bluff";
@@ -246,25 +247,18 @@ export function BluffScreen({
                   <b className="bluff-stamp">Out</b>
                 </>
               )}
+              {p.alive && (
+                <>
+                  <SeatCount n={state.counts[s]} />
+                  {/* the revolver: one hole filled per pull, no words */}
+                  <span className="seat-gun" title={`${p.shots} of ${CHAMBERS} chambers pulled`} aria-label={`${p.shots} of ${CHAMBERS} chambers pulled`}>
+                    <Cylinder shots={p.shots} />
+                  </span>
+                </>
+              )}
             </span>
             <span className="bluff-plate">
               <span className="seat-name">{nameOf(s)}</span>
-              <span className="bluff-stats">
-                {p.alive ? (
-                  <>
-                    <span className="bluff-count" title="Cards in hand">
-                      <i aria-hidden />
-                      {state.counts[s]}
-                    </span>
-                    <span className="bluff-chambers" title="Chambers pulled">
-                      <Cylinder shots={p.shots} />
-                      {p.shots}/{CHAMBERS}
-                    </span>
-                  </>
-                ) : (
-                  <span className="bluff-out">Out</span>
-                )}
-              </span>
             </span>
             {move && p.alive && (
               <span className="bluff-move" data-call={move === "Liar!"} key={`${state.round}-${state.events.length}-${move}`}>
@@ -454,7 +448,10 @@ export function BluffScreen({
               {([0, 1, 2, 3] as Seat[]).map((s) => (
                 <li key={s} data-won={state.winner === s}>
                   <Cylinder shots={state.players[s].shots} dead={!state.players[s].alive} />
-                  <span>{nameOf(s)}</span>
+                  <span>
+                    <Avatar id={CHARACTERS[seatChars[s]]?.id} className="result-pfp" />
+                    {nameOf(s)}
+                  </span>
                   <b>{state.winner === s ? "Winner" : "Out"}</b>
                 </li>
               ))}

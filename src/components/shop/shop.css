@@ -765,16 +765,6 @@ html[data-motion="reduce"] .shop-toast {
   animation: shop-fade 0.2s both;
 }
 
-/* prices: what each game costs and pays */
-.shop-prices li {
-  grid-template-columns: auto 1fr auto;
-}
-.shop-prices .shop-history-when {
-  font-size: 11px;
-  line-height: 1.35;
-  white-space: normal;
-}
-
 /* four packs, 2 × 2, each with a picture that never collapses */
 .shop-grid {
   grid-template-columns: repeat(4, 1fr);
@@ -905,11 +895,178 @@ html[data-motion="reduce"] .shop-toast {
 }
 html[data-motion="reduce"] .coin-pill-delta { animation-duration: 1.2s; }
 
-/* the shop panel hugs its packs: no empty band under the grid */
+/* ─── the sheet: a fixed height. The banner, balance and tabs stay put; only .shop-body scrolls ───
+   (Before, the frame was `height: auto; max-height: 100%` inside the overlay's auto-sized grid row, so the
+   100% never bound it: the frame grew to its content, the overlay clipped it, and the grid was
+   `flex: 0 0 auto` so it could never shrink to scroll. Short landscape screens also turned scrolling sideways
+   with overflow-y hidden.) */
 :root:root .shop-frame {
+  width: min(760px, 100%);
   height: auto;
-  max-height: 100%;
+  max-height: min(86dvh, 720px, calc(100dvh - 24px));
+  min-height: 0;
 }
-:root:root .shop-grid {
-  flex: 0 0 auto;
+.shop-bar,
+.shop-need {
+  flex: none;
+}
+.shop-body {
+  --art-h: 84px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  border: 3px solid rgba(184, 118, 42, 0.6);
+  border-radius: 14px;
+  background: linear-gradient(#2a1d13, #1d150e);
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.5);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(232, 176, 74, 0.45) transparent;
+}
+/* inside the scroller nothing scrolls, clips or shrinks on its own */
+:root:root .shop-body > .shop-grid,
+:root:root .shop-body > .shop-history {
+  flex: none;
+  min-height: auto;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+/* one grid for every tab: the same tile size for packs, backs and tables */
+:root:root .shop-body > .shop-grid {
+  display: grid;
+  grid-auto-flow: row;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-columns: auto;
+  grid-auto-rows: auto;
+  align-content: start;
+  gap: 10px;
+  padding: 14px 10px 14px;
+  background: none;
+}
+:root:root .shop-body > .shop-history {
+  margin: 0;
+  background: none;
+  box-sizing: border-box;
+}
+.shop-body .shop-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 8px 10px;
+}
+.shop-body .shop-tile-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.shop-body .shop-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--art-h);
+  flex: none;
+}
+.shop-body .shop-tile .shop-buy {
+  width: 100%;
+  margin-top: auto;
+  padding: 6px 10px 9px;
+  font-size: 16px;
+}
+.shop-body .shop-tile .shop-art {
+  margin-bottom: 6px;
+}
+/* the corner ribbons sit inside the tile, so the scroller's edge never clips them */
+.shop-body .shop-badge {
+  top: 6px;
+  right: 6px;
+  padding: 2px 7px 3px;
+  border-width: 2px;
+  border-radius: 7px;
+  font-size: 11px;
+  rotate: 0deg;
+}
+@media (max-width: 720px) {
+  :root:root .shop-body > .shop-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 500px) {
+  .shop-body {
+    --art-h: 72px;
+  }
+  :root:root .shop-body > .shop-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 12px 8px;
+  }
+}
+@media (max-height: 520px) and (min-aspect-ratio: 1/1) {
+  .shop-body {
+    --art-h: 52px;
+  }
+  :root:root .shop-frame {
+    max-height: calc(100dvh - 24px);
+  }
+}
+
+/* ─── Prices and History: dark rows in the body's own panel, name over description, amount on the right ─── */
+:root:root .shop-body > .shop-history {
+  padding: 6px 14px;
+  color: #f4ecd8;
+}
+.shop-history li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 4px;
+  border-bottom: 1px solid rgba(244, 236, 216, 0.12);
+}
+.shop-history li:last-child {
+  border-bottom: 0;
+}
+.shop-row-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.shop-history-reason {
+  font: 700 15px/1.25 var(--font-oswald), sans-serif;
+  letter-spacing: 0.02em;
+  color: #f4ecd8;
+}
+.shop-history-when {
+  font: 500 13px/1.35 var(--font-oswald), sans-serif;
+  letter-spacing: 0.01em;
+  white-space: normal;
+  color: rgba(244, 236, 216, 0.68);
+}
+.shop-history b {
+  flex: none;
+  min-width: 0;
+  font: 700 17px/1 var(--font-oswald), sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.shop-history b[data-sign="in"] {
+  color: #7fdc54;
+}
+.shop-history b[data-sign="out"] {
+  color: #ff8a6a;
+}
+.shop-history .shop-empty {
+  display: block;
+  padding: 26px 0;
+  text-align: center;
+  font: 600 15px/1.3 var(--font-oswald), sans-serif;
+  color: rgba(244, 236, 216, 0.6);
 }

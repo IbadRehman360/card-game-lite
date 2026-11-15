@@ -15,7 +15,7 @@ import { CardFace, cardName } from "./playing-card";
 import type { SoloGame } from "./use-solo-game";
 import { DevPanel } from "./dev-panel";
 import { WinFlare } from "./win-flare";
-import { Portrait } from "./portrait";
+import { Portrait, SeatCount, SeatStat } from "./portrait";
 import { ChatButton, type ChatProps, useChatSound } from "./chat";
 import { Burst, EmoteButton, EmoteDeck, type LiveChat, useEmotes } from "./emotes";
 
@@ -135,7 +135,6 @@ export function GameScreen({
         >
           {snap.sars[1]}
         </div>
-        <span>Rivals</span>
       </div>
 
       {/* ── the other three seats ── */}
@@ -159,13 +158,17 @@ export function GameScreen({
                 <Portrait id={c.id} accent={c.accent} className="seat-pfp" letter={(names?.[s] || c.name).slice(0, 1)} />
                 {(bots ? bots[s] : true) && <i className="seat-cpu">CPU</i>}
                 {over && result?.winnerTeam === s % 2 && <WinFlare key={game.dealNo} />}
+                <SeatCount n={snap.cardsLeft[s]} />
               </span>
             )}
             <span className="seat-name">{names?.[s] || c.name}</span>
             <Burst message={lastFrom(s)} rel={s as 1 | 2 | 3} />
-            <span className="seat-cards">
-              {snap.cardsLeft[s]} {snap.cardsLeft[s] === 1 ? "card" : "cards"}
-            </span>
+            {/* the player across is a figure, not a picture: their count goes under the name */}
+            {s === 2 && (
+              <SeatStat icon={<i className="seat-card-ico" aria-hidden />} title="Cards in hand">
+                {snap.cardsLeft[s]}
+              </SeatStat>
+            )}
           </div>
         );
       })}
@@ -196,7 +199,6 @@ export function GameScreen({
             >
               {snap.sars[0]}
             </div>
-            <span>Us</span>
           </div>
           <div
             className="turn-plate"

@@ -1,81 +1,108 @@
 "use client";
 
-import { useState } from "react";
-import { NAME_MAX, cleanName, setPrefs, usePrefs } from "@/lib/prefs";
+import { type ReactNode, useState } from "react";
+import { setPrefs, usePrefs } from "@/lib/prefs";
 import { sfx } from "@/lib/sfx";
 import { type Quality, setQuality, usePerfTier, useQuality } from "@/lib/perf";
 import { EXTRAS } from "./more-games";
-import type { ExtraId } from "./modes";
+import { CODE_LENGTH, type ExtraId, cleanCode } from "./modes";
+import { GUIDES, splitHighlights } from "./how-to-play";
+import "@/components/shop/shop.css";
+import "./how-to-play.css";
 
-/** One short line about coins, under every game's rules. */
-const COIN_LINE = "Pay coins to sit down. Win to collect more.";
-import { CODE_LENGTH, cleanCode } from "./modes";
-
-/** Rung in four lines. */
-const RULES: { suit: string; title: string; text: string }[] = [
-  { suit: "♠", title: "Teams", text: "Two teams of two. Partner sits opposite." },
-  { suit: "♥", title: "Follow suit", text: "Play the led suit if you can." },
-  { suit: "♦", title: "Rung", text: "From haath 5, first off-suit card sets trump." },
-  { suit: "♣", title: "Win", text: "Win two haaths in a row to sweep. First to 7." },
-];
-
-/** 3 Patti in four lines. */
-const PATTI_RULES: { suit: string; title: string; text: string }[] = [
-  { suit: "♠", title: "Boot", text: "Everyone pays the boot and gets three cards." },
-  { suit: "♥", title: "Blind or seen", text: "Bet blind, or look and bet double." },
-  { suit: "♦", title: "Bet", text: "Pack, chaal or raise. Last one in wins." },
-  { suit: "♣", title: "Hands", text: "Trail, pure sequence, sequence, color, pair, high." },
-];
+/** Text with **gold** markers, drawn with the marked words in gold. */
+function Marked({ text }: { text: string }) {
+  return splitHighlights(text).map((part, i) =>
+    i % 2 ? (
+      <b key={i} className="hl">
+        {part}
+      </b>
+    ) : (
+      part
+    ),
+  );
+}
 
 export function RulesPanel({ game: initial = "rung" }: { game?: "rung" | "patti" | ExtraId }) {
   const [game, setGame] = useState<string>(initial);
   const games = [
-    { id: "rung", name: "Rung", rules: RULES },
-    { id: "patti", name: "3 Patti", rules: PATTI_RULES },
-    ...EXTRAS.map((g) => ({ id: g.id as string, name: g.name, rules: g.rules })),
+    { id: "rung" as const, name: "Rung" },
+    { id: "patti" as const, name: "3 Patti" },
+    ...EXTRAS.map((g) => ({ id: g.id, name: g.name })),
   ];
   const current = games.find((g) => g.id === game) ?? games[0];
+  const guide = GUIDES[current.id];
   return (
     <>
-    <div className="rules-games" role="radiogroup" aria-label="Game">
+    {/* the shop's tab buttons (shop.css .shop-tabs), so every switcher in the app looks the same */}
+    <div className="shop-tabs htp-tabs" role="tablist" aria-label="Game">
       {games.map((g) => (
-        <button key={g.id} type="button" role="radio" aria-checked={current.id === g.id} onClick={() => { sfx.flip(); setGame(g.id); }}>
+        <button
+          key={g.id}
+          type="button"
+          role="tab"
+          aria-selected={current.id === g.id}
+          onClick={(e) => {
+            sfx.flip();
+            setGame(g.id);
+            e.currentTarget.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+          }}
+        >
           {g.name}
         </button>
       ))}
     </div>
-    <ol className="rules">
-      {current.rules.map((r) => (
-        <li
-          key={r.title}
-          className="rule"
-          data-red={r.suit === "♥" || r.suit === "♦"}
-        >
-          <span className="rule-suit" aria-hidden>
-            {r.suit}
-          </span>
-          <h3>{r.title}</h3>
-          <p>{r.text}</p>
-        </li>
-      ))}
-    </ol>
-    <p className="rules-coins">{COIN_LINE}</p>
+    <article className="htp" role="tabpanel" aria-label={`How to play ${current.name}`}>
+      <ol className="htp-steps">
+        {guide.steps.map((step) => (
+          <li key={step.title} className="htp-step">
+            <b className="htp-title">{step.title}</b> <Marked text={step.text} />
+          </li>
+        ))}
+      </ol>
+    </article>
     </>
+  );
+}
+
+/** One settings row: the label (and an optional muted hint) on the left, its control on the right. */
+function Row({
+  label,
+  hint,
+  stack,
+  as: Tag = "div",
+  children,
+}: {
+  label: string;
+  hint?: string;
+  stack?: boolean;
+  as?: "div" | "label";
+  children: ReactNode;
+}) {
+  return (
+    <Tag className="set-row" data-stack={stack || undefined}>
+      <span className="set-text">
+        <span className="set-label">{label}</span>
+        {hint && <span className="set-hint">{hint}</span>}
+      </span>
+      {children}
+    </Tag>
   );
 }
 
 function Toggle({
   label,
+  hint,
   checked,
   onChange,
 }: {
   label: string;
+  hint?: string;
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="setting">
-      <span className="setting-label">{label}</span>
+    <Row as="label" label={label} hint={hint}>
       <input
         type="checkbox"
         role="switch"
@@ -86,7 +113,7 @@ function Toggle({
           sfx.select();
         }}
       />
-    </label>
+    </Row>
   );
 }
 
@@ -96,84 +123,84 @@ const QUALITIES: { id: Quality; name: string }[] = [
   { id: "high", name: "Sharp" },
 ];
 
+/** Sound and display, as one short list under two small headings (it all fits a phone without scrolling). */
 export function SettingsPanel() {
   const prefs = usePrefs();
   const quality = useQuality();
   const tier = usePerfTier();
+  const volume = Math.round(prefs.sfxVolume * 100);
+  const tierName = tier === "low" ? "Smooth" : tier === "mid" ? "Balanced" : "Sharp";
   return (
     <div className="settings">
-      <div className="setting setting-stack">
-        <span className="setting-label">
-          Graphics{quality === "auto" ? ` · ${tier === "low" ? "smooth" : tier === "mid" ? "balanced" : "sharp"}` : ""}
-        </span>
-        <div className="lobby-switch" data-count="3" role="radiogroup" aria-label="Graphics">
-          {QUALITIES.map((q) => (
-            <button
-              key={q.id}
-              type="button"
-              role="radio"
-              aria-checked={quality === q.id}
-              onClick={() => {
-                sfx.flip();
-                setQuality(q.id);
-              }}
-            >
-              {q.name}
-            </button>
-          ))}
-          <i aria-hidden style={{ translate: `${QUALITIES.findIndex((q) => q.id === quality) * 100}% 0` }} />
-        </div>
-      </div>
-      <label className="setting setting-stack">
-        <span className="setting-label">Player name</span>
-        <input
-          className="text-field"
-          value={prefs.name}
-          maxLength={NAME_MAX}
-          autoComplete="nickname"
-          spellCheck={false}
-          placeholder="Player"
-          onChange={(e) => setPrefs({ name: cleanName(e.target.value) })}
-        />
-      </label>
-      <label className="setting">
-        <span className="setting-label">Sound effects</span>
-        <span className="range-wrap">
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={Math.round(prefs.sfxVolume * 100)}
-            aria-valuetext={`${Math.round(prefs.sfxVolume * 100)} percent`}
-            onChange={(e) =>
-              setPrefs({ sfxVolume: Number(e.target.value) / 100 })
-            }
-            onPointerUp={() => sfx.select()}
-            onKeyUp={() => sfx.hover()}
-            className="range"
-            style={{ ["--fill" as string]: `${prefs.sfxVolume * 100}%` }}
+      <section className="set-group" aria-labelledby="set-sound">
+        <h3 id="set-sound" className="set-head">Sound</h3>
+        <div className="set-card">
+          <Row as="label" label="Sound effects">
+            <span className="range-wrap">
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={volume}
+                aria-valuetext={`${volume} percent`}
+                onChange={(e) => setPrefs({ sfxVolume: Number(e.target.value) / 100 })}
+                onPointerUp={() => sfx.select()}
+                onKeyUp={() => sfx.hover()}
+                className="range"
+                style={{ ["--fill" as string]: `${prefs.sfxVolume * 100}%` }}
+              />
+              <output className="range-value">{volume}</output>
+            </span>
+          </Row>
+          <Toggle
+            label="Room ambience"
+            hint="Background sounds of the room"
+            checked={prefs.ambience}
+            onChange={(v) => setPrefs({ ambience: v })}
           />
-          <output className="range-value">
-            {Math.round(prefs.sfxVolume * 100)}
-          </output>
-        </span>
-      </label>
-      <Toggle
-        label="Room ambience"
-        checked={prefs.ambience}
-        onChange={(v) => setPrefs({ ambience: v })}
-      />
-      <Toggle
-        label="Mute all"
-        checked={prefs.muted}
-        onChange={(v) => setPrefs({ muted: v })}
-      />
-      <Toggle
-        label="Reduce motion"
-        checked={prefs.reduceMotion}
-        onChange={(v) => setPrefs({ reduceMotion: v })}
-      />
+          <Toggle
+            label="Mute all"
+            hint="Silence every sound at once"
+            checked={prefs.muted}
+            onChange={(v) => setPrefs({ muted: v })}
+          />
+        </div>
+      </section>
+      <section className="set-group" aria-labelledby="set-display">
+        <h3 id="set-display" className="set-head">Display</h3>
+        <div className="set-card">
+          <Row
+            label="Graphics"
+            hint={quality === "auto" ? `Auto picks the best for your phone · ${tierName}` : "Smooth runs faster, Sharp looks crisper"}
+            stack
+          >
+            <div className="lobby-switch" data-count="3" role="radiogroup" aria-label="Graphics">
+              {QUALITIES.map((q) => (
+                <button
+                  key={q.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={quality === q.id}
+                  onClick={() => {
+                    sfx.flip();
+                    setQuality(q.id);
+                  }}
+                >
+                  {q.name}
+                </button>
+              ))}
+              <i aria-hidden style={{ translate: `${QUALITIES.findIndex((q) => q.id === quality) * 100}% 0` }} />
+            </div>
+          </Row>
+          <Toggle
+            label="Reduce motion"
+            hint="Fewer moving cards and effects"
+            checked={prefs.reduceMotion}
+            onChange={(v) => setPrefs({ reduceMotion: v })}
+          />
+        </div>
+      </section>
     </div>
   );
 }

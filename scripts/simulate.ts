@@ -57,7 +57,8 @@ for (let n = 0; n < DEALS; n++) {
     }
     if (last && counts && prevCounting === e.winner) check(e.collectedBy !== null, "a streak on the 13th takes the stack, Ace or not");
     if (counts && !last && prevCounting === e.winner && winCard[0] === "A") {
-      check(e.collectedBy === null && e.aceBlocked && e.armed, "Ace win keeps the stack down and the streak alive");
+      // On the 12th haath the stack can't be taken anyway, so that block is reported as twelfthBlocked instead.
+      check(e.collectedBy === null && (e.aceBlocked || e.twelfthBlocked) && e.armed, "Ace win keeps the stack down and the streak alive");
       aceBlocks++;
     }
     if (!counts) check(e.collectedBy === null, "no collecting before Rung");

@@ -1,14 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, Oswald } from "next/font/google";
+import { Baloo_2 } from "next/font/google";
 import { APP_NAME } from "@/lib/brand";
 import { PwaBoot } from "@/components/pwa/pwa-boot";
 import "./globals.css";
 import "@/components/ui/modal.css";
 
-// Oswald: condensed, upright display type for the title, buttons and names.
-const oswald = Oswald({ variable: "--font-oswald", weight: ["500", "600", "700"], subsets: ["latin"] });
-// IBM Plex Mono: small HUD labels, key hints and codes.
-const plexMono = IBM_Plex_Mono({ variable: "--font-plex-mono", weight: ["400", "500", "600"], subsets: ["latin"] });
+// Baloo 2: one bold, rounded, friendly face for everything (titles, buttons, names, rules text).
+// The CSS still reads it through the old --font-oswald / --font-plex-mono names, so every rule that
+// used the condensed display face or the monospace HUD face now gets Baloo without touching them.
+const ui = Baloo_2({ variable: "--font-oswald", weight: ["500", "600", "700", "800"], subsets: ["latin"] });
+const uiAlt = Baloo_2({ variable: "--font-plex-mono", weight: ["500", "600", "700", "800"], subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: APP_NAME,
@@ -29,7 +30,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${oswald.variable} ${plexMono.variable} antialiased`} suppressHydrationWarning>
+    <html lang="en" className={`${ui.variable} ${uiAlt.variable} antialiased`} suppressHydrationWarning>
       <body className="h-dvh w-screen overflow-hidden">
         {children}
         <PwaBoot />

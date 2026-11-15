@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { type GameKind, type LedgerEntry, type Outcome, WALLET_HEADER, type WalletView } from "./economy";
+import { type CardBackId, DEFAULT_BACK, DEFAULT_TABLE, type GameKind, type TableThemeId, type LedgerEntry, type Outcome, WALLET_HEADER, type WalletView } from "./economy";
 
 /**
  * This phone's coins, as the game server reports them. The phone keeps only a secret wallet token;
@@ -13,6 +13,10 @@ const TOKEN_KEY = "baazi:wallet";
 export interface WalletState {
   coins: number | null;
   ledger: LedgerEntry[];
+  /** Card backs this wallet owns, as the server reports them. */
+  backs: CardBackId[];
+  /** Table themes this wallet owns, as the server reports them. */
+  tables: TableThemeId[];
   loading: boolean;
   error: string | null;
 }
@@ -30,9 +34,9 @@ export class CoinError extends Error {
 
 // ───────────── a tiny store ─────────────
 
-let state: WalletState = { coins: null, ledger: [], loading: false, error: null };
+let state: WalletState = { coins: null, ledger: [], backs: [DEFAULT_BACK], tables: [DEFAULT_TABLE], loading: false, error: null };
 const listeners = new Set<() => void>();
-const SERVER: WalletState = { coins: null, ledger: [], loading: false, error: null };
+const SERVER: WalletState = { coins: null, ledger: [], backs: [DEFAULT_BACK], tables: [DEFAULT_TABLE], loading: false, error: null };
 
 function set(patch: Partial<WalletState>) {
   state = { ...state, ...patch };
@@ -75,7 +79,14 @@ function saveToken(t: string | null) {
 }
 
 function apply(w: WalletView | undefined) {
-  if (w && typeof w.coins === "number") set({ coins: w.coins, ledger: w.ledger ?? [], error: null });
+  if (w && typeof w.coins === "number")
+    set({
+      coins: w.coins,
+      ledger: w.ledger ?? [],
+      backs: Array.isArray(w.backs) ? w.backs : [DEFAULT_BACK],
+      tables: Array.isArray(w.tables) ? w.tables : [DEFAULT_TABLE],
+      error: null,
+    });
 }
 
 async function call<T>(method: "GET" | "POST", body?: Record<string, unknown>): Promise<T> {
@@ -157,6 +168,20 @@ export async function buyPack(packId: string): Promise<number> {
   const r = await call<{ wallet: WalletView }>("POST", { action: "buy", pack: packId, purchase: uuid() });
   apply(r.wallet);
   return Math.max(0, r.wallet.coins - before);
+}
+
+/** Buys a card back with coins. Throws CoinError (with `short`) when there aren't enough. */
+export async function buyCardBack(back: CardBackId): Promise<void> {
+  await ensureWallet();
+  const r = await call<{ wallet: WalletView }>("POST", { action: "buyBack", back });
+  apply(r.wallet);
+}
+
+/** Buys a table theme with coins. Throws CoinError (with `short`) when there aren't enough. */
+export async function buyTableTheme(table: TableThemeId): Promise<void> {
+  await ensureWallet();
+  const r = await call<{ wallet: WalletView }>("POST", { action: "buyTable", table });
+  apply(r.wallet);
 }
 
 /** Pays for a game against the computer. Throws CoinError (with `short`) when there aren't enough coins. */

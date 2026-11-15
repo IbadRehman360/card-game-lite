@@ -24,6 +24,36 @@ export interface SeatEntry {
   awaySince?: number | null;
   /** 3 Patti: how many times this player bought chips at the table (caps what they can cash out). */
   buyIns?: number;
+  /** Quick match: sitting here without having paid the fee (couldn't afford it), so it pays nothing out either. */
+  free?: boolean;
+  /** Quick match: a computer filling a seat, which plays at a person's pace and now and then says something. */
+  lifelike?: boolean;
+  /**
+   * The player's phone went quiet and the server has been moving for them (closed app, reload, no
+   * signal). The seat is still theirs; they get short turns until their phone says it's back.
+   */
+  dropped?: boolean;
+}
+
+/** A quick-match table while it fills up (stored with the room until the game starts). */
+export interface QuickMeta {
+  /** The game and seat count it matches people for, e.g. "rung:4". */
+  key: string;
+  openedAt: number;
+  /**
+   * When each seat nobody takes gets filled, one after another (server ms), with who fills it. A person
+   * who joins takes the place of the last of these, so the table never fills slower than this.
+   */
+  arrivals: { at: number; name: string; avatar: string }[];
+}
+
+/** The search screen of a quick-match table: who has sat down so far. */
+export interface MatchView {
+  game: string;
+  /** One entry per seat; null while the seat is still empty. */
+  seats: ({ name: string; avatar: string; isMe: boolean } | null)[];
+  /** Milliseconds until the game starts, once everyone is there (null: still filling). */
+  startsIn: number | null;
 }
 
 /** The four games that aren't Rung or 3 Patti, with the state the server keeps for them. */
@@ -54,6 +84,8 @@ export interface StoredState {
   deadline?: number | null;
   /** Unique per game, so coin charges and payouts are made exactly once. */
   gameId?: string;
+  /** A quick-match table (people matched by the server, empty seats filled for them). */
+  quick?: boolean;
 }
 
 /** What the live stream (/events) sends. */
@@ -112,6 +144,17 @@ export interface RoomView {
   spectating: boolean;
   /** Milliseconds (from when this view was made) until the player on turn can be timed out. */
   turnDeadlineIn: number | null;
+  /** A quick-match table. */
+  quick: boolean;
+  /** A quick-match table still filling up: what the search screen shows. */
+  match: MatchView | null;
+  /**
+   * The game at this table has been played to its end (a Rung match won, or a Bluff, Paanch, Bhabhi or
+   * G Patta game over). A phone that left it no longer offers to go back to it. 3 Patti deals on and on.
+   */
+  finished?: boolean;
+  /** The server has been moving for this player (their phone went quiet); the phone answers with action "back". */
+  dropped?: boolean;
 }
 
 export interface JoinResponse {

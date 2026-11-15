@@ -3,8 +3,9 @@
 import { type CSSProperties, type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { sfx } from "@/lib/sfx";
 import { type CoinPack, GAMES, PACKS } from "@/lib/wallet/economy";
-import { CoinError, buyPack, closeShop, refreshWallet, useShop, useWallet } from "@/lib/wallet/client";
+import { CoinError, buyPack, closeShop, openShop, refreshWallet, useShop, useWallet } from "@/lib/wallet/client";
 import { useCountUp } from "./use-count-up";
+import { CardsTab, TablesTab } from "./card-style";
 import "./shop.css";
 
 const fmt = (n: number) => n.toLocaleString("en-IN");
@@ -38,7 +39,7 @@ export function ShopOverlay() {
 function Shop({ need, message }: { need: number | null; message: string | null }) {
   const { coins, ledger } = useWallet();
   const shown = useCountUp(coins);
-  const [tab, setTab] = useState<"coins" | "prices" | "history">("coins");
+  const [tab, setTab] = useState<"coins" | "cards" | "tables" | "prices" | "history">("coins");
   const [buying, setBuying] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
@@ -46,7 +47,7 @@ function Shop({ need, message }: { need: number | null; message: string | null }
   const [bump, setBump] = useState(0);
   const [now, setNow] = useState(0);
   // the balance when the shop opened, to know how much of `need` is still missing
-  const [base] = useState(() => coins ?? 0);
+  const [base, setBase] = useState(() => coins ?? 0);
   const frame = useRef<HTMLDivElement>(null);
   const balance = useRef<HTMLDivElement>(null);
   const flyId = useRef(0);
@@ -141,6 +142,15 @@ function Shop({ need, message }: { need: number | null; message: string | null }
     }
   };
 
+  // a back or table that costs more than you have: on to the coin packs, counting from now
+  const needCoins = (short: number, why: string) => {
+    sfx.select();
+    setError(null);
+    setBase(coins ?? 0);
+    openShop({ need: short, message: why });
+    setTab("coins");
+  };
+
   const missing = need ? Math.max(0, need - ((coins ?? base) - base)) : 0;
 
   return (
@@ -173,6 +183,28 @@ function Shop({ need, message }: { need: number | null; message: string | null }
               }}
             >
               Coins
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "cards"}
+              onClick={() => {
+                sfx.flip();
+                setTab("cards");
+              }}
+            >
+              Cards
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "tables"}
+              onClick={() => {
+                sfx.flip();
+                setTab("tables");
+              }}
+            >
+              Tables
             </button>
             <button
               type="button"
@@ -218,6 +250,8 @@ function Shop({ need, message }: { need: number | null; message: string | null }
           </p>
         )}
 
+        {/* only this scrolls: the header, balance and tabs above stay put */}
+        <div className="shop-body" role="tabpanel" key={tab}>
         {tab === "coins" ? (
           <div className="shop-grid" role="list">
             {PACKS.map((p, i) => (
@@ -244,12 +278,18 @@ function Shop({ need, message }: { need: number | null; message: string | null }
               </div>
             ))}
           </div>
+        ) : tab === "cards" ? (
+          <CardsTab onNeedCoins={needCoins} onError={setError} />
+        ) : tab === "tables" ? (
+          <TablesTab onNeedCoins={needCoins} onError={setError} />
         ) : tab === "prices" ? (
           <ul className="shop-history shop-prices">
             {Object.values(GAMES).map((g) => (
               <li key={g.id}>
-                <span className="shop-history-reason">{g.name}</span>
-                <span className="shop-history-when">{g.pays}</span>
+                <span className="shop-row-text">
+                  <span className="shop-history-reason">{g.name}</span>
+                  <span className="shop-history-when">{g.pays}</span>
+                </span>
                 <b data-sign="out">−{fmt(g.fee)}</b>
               </li>
             ))}
@@ -259,8 +299,10 @@ function Shop({ need, message }: { need: number | null; message: string | null }
             {ledger.length === 0 && <li className="shop-empty">Nothing yet</li>}
             {ledger.map((l, i) => (
               <li key={`${l.at}-${i}`}>
-                <span className="shop-history-reason">{l.reason}</span>
-                <span className="shop-history-when">{now ? ago(l.at, now) : ""}</span>
+                <span className="shop-row-text">
+                  <span className="shop-history-reason">{l.reason}</span>
+                  <span className="shop-history-when">{now ? ago(l.at, now) : ""}</span>
+                </span>
                 <b data-sign={l.amount >= 0 ? "in" : "out"}>
                   {l.amount >= 0 ? "+" : "−"}
                   {fmt(Math.abs(l.amount))}
@@ -269,7 +311,7 @@ function Shop({ need, message }: { need: number | null; message: string | null }
             ))}
           </ul>
         )}
-
+        </div>
 
         {toast && (
           <div className="shop-toast" key={toast.id} role="status">

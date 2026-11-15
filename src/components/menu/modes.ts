@@ -24,7 +24,9 @@ export type Mode =
   | ({ kind: "host"; game?: TableGame } & HostOptions)
   | { kind: "join"; code: string }
   | { kind: "patti"; table: "low" | "mid" | "high" }
-  | ({ kind: "solo"; game: TableGame } & HostOptions);
+  | ({ kind: "solo"; game: TableGame } & HostOptions)
+  /** Play: a quick match, at a table the server fills with people searching for the same game. */
+  | { kind: "quick"; game: TableGame };
 
 /** The games beyond Rung and 3 Patti, played against the computer. */
 export type ExtraId = "bluff" | "paanch" | "bhabhi" | "gpatta";
@@ -54,5 +56,6 @@ export function modeLabel(mode: Mode) {
   if (mode.kind === "host") return "Hosting a table";
   if (mode.kind === "patti") return "3 Patti vs House";
   if (mode.kind === "solo") return "Solo vs House";
+  if (mode.kind === "quick") return "Quick match";
   return `Joining ${mode.code}`;
 }

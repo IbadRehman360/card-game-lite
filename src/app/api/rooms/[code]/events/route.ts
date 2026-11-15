@@ -1,6 +1,6 @@
 import { type NextRequest, connection } from "next/server";
 import { normaliseCode } from "@/lib/online/rooms";
-import { getStore } from "@/lib/online/store";
+import { type RoomStore, StoreUnavailableError, getStore } from "@/lib/online/store";
 import { ApiError, clientId, limit } from "@/lib/online/guard";
 
 // Serverless hosts cap how long one request may run. The stream ends itself a little earlier and the
@@ -15,7 +15,6 @@ const STREAM_MS = 280_000;
 export async function GET(req: NextRequest, ctx: { params: Promise<{ code: string }> }) {
   await connection();
   const code = normaliseCode((await ctx.params).code);
-  const store = await getStore();
   try {
     limit("events", clientId(req));
   } catch (e) {
@@ -24,8 +23,17 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ code: strin
   }
   // A table that's gone (e.g. the server restarted): a plain error stops the browser reconnecting
   // every second; the phone's next fetch gets the same 404 and leaves the table.
-  if (!(await store.getRoom(code))) {
-    return Response.json({ error: "That table doesn't exist (or the server was restarted)", code: 404 }, { status: 404 });
+  let store: RoomStore;
+  try {
+    store = await getStore();
+    if (!(await store.getRoom(code))) {
+      return Response.json({ error: "That table doesn't exist (or the server was restarted)", code: 404 }, { status: 404 });
+    }
+  } catch (e) {
+    // the store can't be reached right now: say so (the browser tries again later), never a bare 500
+    if (!(e instanceof StoreUnavailableError)) console.error("[baazi] events error", e);
+    const error = e instanceof StoreUnavailableError ? e.message : "Tables are unavailable right now, try again in a moment";
+    return Response.json({ error, code: 503 }, { status: 503, headers: { "Retry-After": "5" } });
   }
 
   const encoder = new TextEncoder();
@@ -42,13 +50,24 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ code: strin
           cleanup();
         }
       };
-      const unsubscribe = await store.subscribe(code, (e) =>
-        send(
-          e.type === "chat"
-            ? `event: chat\ndata: ${JSON.stringify(e.message)}\n\n`
-            : `event: update\ndata: ${JSON.stringify({ version: e.version })}\n\n`,
-        ),
-      );
+      let unsubscribe = () => {};
+      try {
+        unsubscribe = await store.subscribe(code, (e) =>
+          send(
+            e.type === "chat"
+              ? `event: chat\ndata: ${JSON.stringify(e.message)}\n\n`
+              : `event: update\ndata: ${JSON.stringify({ version: e.version })}\n\n`,
+          ),
+        );
+      } catch (e) {
+        // no change feed: end the stream; the browser reconnects and the phone's polling covers the gap
+        console.error("[baazi] events subscribe failed", e);
+        closed = true;
+        try {
+          controller.close();
+        } catch {}
+        return;
+      }
       send("retry: 1000\n\n");
       // Comment pings keep proxies and idle connections from timing out.
       const ping = setInterval(() => send(": ping\n\n"), 20000);

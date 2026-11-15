@@ -1,7 +1,11 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { type CharacterId, isCharacterId } from "./characters";
+import { type CharacterId, resolveCharacterId } from "./characters";
+import { type CardBackId, DEFAULT_BACK, DEFAULT_TABLE, type TableThemeId, isCardBackId, isTableThemeId } from "./wallet/economy";
+
+/** Classic: red and black. Four colour: spades black, hearts red, diamonds blue, clubs green. */
+export type SuitColors = "classic" | "four";
 
 /** Per-device settings, kept in localStorage. Everything works without storage too. */
 export interface Prefs {
@@ -13,6 +17,11 @@ export interface Prefs {
   /** Master mute for every sound. */
   muted: boolean;
   reduceMotion: boolean;
+  suitColors: SuitColors;
+  /** The card back picked (shown only while the wallet owns it; see src/lib/card-style.ts). */
+  cardBack: CardBackId;
+  /** The table theme picked (shown only while the wallet owns it; see src/components/stage/table-theme.tsx). */
+  tableTheme: TableThemeId;
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -22,6 +31,9 @@ export const DEFAULT_PREFS: Prefs = {
   ambience: true,
   muted: false,
   reduceMotion: false,
+  suitColors: "classic",
+  cardBack: DEFAULT_BACK,
+  tableTheme: DEFAULT_TABLE,
 };
 
 export const NAME_MAX = 16;
@@ -43,11 +55,15 @@ function clean(v: unknown): Prefs {
   const vol = Number(o.sfxVolume);
   return {
     name: cleanName(o.name),
-    character: isCharacterId(o.character) ? o.character : null,
+    // old figure ids (mungo, corvina, sal, wart) carry over to the desi character on the same figure
+    character: resolveCharacterId(o.character),
     sfxVolume: Number.isFinite(vol) ? Math.min(1, Math.max(0, vol)) : DEFAULT_PREFS.sfxVolume,
     ambience: typeof o.ambience === "boolean" ? o.ambience : DEFAULT_PREFS.ambience,
     muted: typeof o.muted === "boolean" ? o.muted : DEFAULT_PREFS.muted,
     reduceMotion: typeof o.reduceMotion === "boolean" ? o.reduceMotion : DEFAULT_PREFS.reduceMotion,
+    suitColors: o.suitColors === "four" ? "four" : "classic",
+    cardBack: isCardBackId(o.cardBack) ? o.cardBack : DEFAULT_PREFS.cardBack,
+    tableTheme: isTableThemeId(o.tableTheme) ? o.tableTheme : DEFAULT_PREFS.tableTheme,
   };
 }
 

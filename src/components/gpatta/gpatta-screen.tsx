@@ -8,7 +8,8 @@ import { payoutFor } from "@/lib/wallet/economy";
 import { sfx } from "@/lib/sfx";
 import { CostTag } from "@/components/shop/cost-tag";
 import { WinFlare } from "@/components/game/win-flare";
-import { Portrait } from "@/components/game/portrait";
+import { Portrait, SeatCount } from "@/components/game/portrait";
+import { Avatar } from "@/components/avatars/avatar";
 import { CardFace } from "@/components/game/playing-card";
 import { seatTags } from "@/components/stage/anchors";
 import { DEAL_GAP, GPATTA_TURN_SECONDS, PAIR_FLY, PAIR_GAP, type GPattaGame, motionReduced, timeline } from "./use-gpatta";
@@ -243,11 +244,9 @@ export function GPattaScreen({
               {safe && <WinFlare key={`f${p.place}`} />}
               {safe && <em className="gp-place">{ordinal(p.place!)}</em>}
               {over && state.g === s && <strong className="gp-stamp">G</strong>}
+              {!safe && <SeatCount n={p.hand.length} />}
             </span>
             <span className="seat-name">{nameOf(s)}</span>
-            <span className="seat-cards" key={p.hand.length}>
-              {safe ? "Safe" : `${p.hand.length} card${p.hand.length === 1 ? "" : "s"}`}
-            </span>
           </div>
         );
       })}
@@ -408,7 +407,8 @@ export function GPattaScreen({
               <ol className="gp-standings">
                 {standings.map(({ i, place }) => (
                   <li key={i} data-me={i === ME} data-g={i === state.g}>
-                    <b>{i === state.g ? "G" : ordinal(place)}</b> {nameOf(i)}
+                    <b>{i === state.g ? "G" : ordinal(place)}</b> <Avatar id={chars[i]?.id} className="result-pfp" />
+                    {nameOf(i)}
                   </li>
                 ))}
               </ol>
