@@ -374,6 +374,8 @@ export function useOnlineRoom(code: string | null, token: string | null) {
   );
 
   const busy = useRef(false);
+  // the player's own moves on their way to the server (not the clock's automatic ones): shows the move spinner
+  const [moving, setMoving] = useState(0);
   const act = useCallback(
     async (action: string, extra: Record<string, unknown> = {}) => {
       if (!code || goneRef.current) return;
@@ -384,6 +386,7 @@ export function useOnlineRoom(code: string | null, token: string | null) {
       if (serial && busy.current) return;
       if (serial) busy.current = true;
       setPending(true);
+      if (own) setMoving((n) => n + 1);
       try {
         const res = await api<{ view?: RoomView }>(`/api/rooms/${code}`, {
           method: "POST",
@@ -400,6 +403,7 @@ export function useOnlineRoom(code: string | null, token: string | null) {
       } finally {
         if (serial) busy.current = false;
         setPending(busy.current);
+        if (own) setMoving((n) => Math.max(0, n - 1));
       }
     },
     [code, token, refresh, accept, setError],
@@ -448,7 +452,7 @@ export function useOnlineRoom(code: string | null, token: string | null) {
 
   // a view of the table this phone was at before (another code, or the same code with another seat) never shows
   const current = code && token && room?.code === code && !gone ? room : null;
-  return { room: current, error, pending, live, gone, act, chat: current ? chat : NO_CHAT, sendChat, matchLost: matchLost && filling, clearError: () => {
+  return { room: current, error, pending, moving: moving > 0, live, gone, act, chat: current ? chat : NO_CHAT, sendChat, matchLost: matchLost && filling, clearError: () => {
       setError(null);
       setLoadError(null);
     },
@@ -458,7 +462,7 @@ export function useOnlineRoom(code: string | null, token: string | null) {
 const NO_CHAT: LiveChatMessage[] = [];
 
 /** Moves any phone at the table may send for someone else; they never block the player's own. */
-const AUTO_ACTIONS = new Set(["tick", "timeout", "reap"]);
+const AUTO_ACTIONS = new Set(["tick", "extraTick", "timeout", "reap"]);
 /** The player's game moves: one at a time. */
 const SERIAL_ACTIONS = new Set(["play", "patti", "next", "start"]);
 

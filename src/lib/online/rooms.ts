@@ -1,5 +1,7 @@
 import "server-only";
 import { randomBytes, randomInt, randomUUID } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { after } from "next/server";
 import { chooseCard, runBots } from "../game/bot";
 import {
   type GameOptions,
@@ -116,6 +118,52 @@ async function playerByToken(store: RoomStore, code: string, token: string): Pro
   return p;
 }
 
+/**
+ * The table and the player at this phone, read at the same time (each read is a round trip to the
+ * database, so two in a row would double the wait on every move).
+ */
+async function roomAndMe(store: RoomStore, code: string, token: string) {
+  const [room, players] = await Promise.all([loadRoom(store, code), store.listPlayers(code)]);
+  const me = token ? players.find((p) => p.token === token) : undefined;
+  if (!me) throw new RoomError("You're not at this table — join it first", 403);
+  const box = known.getStore();
+  if (box) Object.assign(box, { code, room, players });
+  return { room, me };
+}
+
+/**
+ * During a game move, the table and its players as this request last read or wrote them. The reply's
+ * view is built from these instead of reading both again (a game move never changes who is at the
+ * table), so a move costs two trips to the database: read, then write.
+ */
+interface Known {
+  code?: string;
+  room?: RoomRow;
+  players?: PlayerRow[];
+}
+const known = new AsyncLocalStorage<Known>();
+
+/** Runs a game move and then builds this phone's view of the table from what the move already knows. */
+export async function moveThenView<T>(rawCode: string, token: string, move: () => Promise<T>): Promise<RoomView> {
+  const box: Known = {};
+  await known.run(box, move);
+  const code = normaliseCode(rawCode);
+  return getRoomView(code, token, box.code === code ? box : undefined);
+}
+
+/**
+ * Work the player who moved needn't wait for (nudging the other phones, a computer's chat line): it runs
+ * once the reply is on its way. Outside a request (tests, scripts) it simply runs in the background.
+ */
+function later(work: () => Promise<unknown>) {
+  const run = () => work().catch((e) => console.error("[baazi] background step failed", e));
+  try {
+    after(run);
+  } catch {
+    void run();
+  }
+}
+
 // Slack on top of the player's 15 seconds, for the network and the phones' animations. Their own
 // phone plays a card for them on time; the server only steps in when that phone has gone quiet.
 const GRACE_MS = 2500;
@@ -161,7 +209,10 @@ function nextState(before: GameState | null, game: GameState, seats: SeatEntry[]
 async function saveRoom(store: RoomStore, room: RoomRow, patch: Partial<Pick<RoomRow, "status" | "options" | "state">>) {
   const version = await store.updateRoom(room.code, room.version, patch);
   if (version === null) throw new RoomError("The table changed — try again", 409);
-  await store.publish(room.code, version);
+  const box = known.getStore();
+  if (box?.code === room.code) box.room = { ...room, ...patch, version };
+  // the phone that moved gets the new table in its reply; the others are nudged right after
+  later(() => store.publish(room.code, version));
   return version;
 }
 
@@ -363,11 +414,11 @@ export async function joinRoom(
   return { code, token };
 }
 
-export async function getRoomView(rawCode: string, token: string): Promise<RoomView> {
+export async function getRoomView(rawCode: string, token: string, have?: Known): Promise<RoomView> {
   const store = await getStore();
   const code = normaliseCode(rawCode);
-  const room = await loadRoom(store, code);
-  const players = await store.listPlayers(code);
+  const [room, players] =
+    have?.room && have.players ? [have.room, have.players] : await Promise.all([loadRoom(store, code), store.listPlayers(code)]);
   const me = players.find((p) => p.token === token);
   if (!token || !me) throw new RoomError("You're not at this table — join it first", 403);
 
@@ -522,8 +573,7 @@ export async function shufflePairs(rawCode: string, token: string) {
 export async function updateOptions(rawCode: string, token: string, options: unknown) {
   const store = await getStore();
   const code = normaliseCode(rawCode);
-  const room = await loadRoom(store, code);
-  const me = await playerByToken(store, code, token);
+  const { room, me } = await roomAndMe(store, code, token);
   if (!me.is_host) throw new RoomError("Only the host can change the rules", 403);
   if (room.status !== "lobby") throw new RoomError("The game has already started");
   const next = cleanOptions(options);
@@ -538,8 +588,7 @@ export async function updateOptions(rawCode: string, token: string, options: unk
 export async function startGame(rawCode: string, token: string) {
   const store = await getStore();
   const code = normaliseCode(rawCode);
-  const room = await loadRoom(store, code);
-  const me = await playerByToken(store, code, token);
+  const { room, me } = await roomAndMe(store, code, token);
   if (!me.is_host) throw new RoomError("Only the host can start the game", 403);
   if (room.status !== "lobby") throw new RoomError("The game has already started");
 
@@ -650,8 +699,8 @@ export async function pattiMove(rawCode: string, token: string, action: unknown)
 }
 async function pattiMoveOnce(rawCode: string, token: string, action: unknown) {
   const store = await getStore();
-  const room = await loadRoom(store, normaliseCode(rawCode));
-  const seat = await mySeatIn(store, room, token);
+  const { room, me } = await roomAndMe(store, normaliseCode(rawCode), token);
+  const seat = seatOf(room, me);
   const state = room.state!;
   if (!state.patti) throw new RoomError("This table plays Rung");
   const move = cleanPattiAction(action);
@@ -668,7 +717,7 @@ async function pattiMoveOnce(rawCode: string, token: string, action: unknown) {
   const deadline = sameTurn ? (state.deadline ?? null) : pattiDeadline(p, seats);
   const after = { ...state, patti: p, seats, deadline };
   await saveRoom(store, room, { state: after });
-  await banter(store, room.code, state, after);
+  later(() => banter(store, room.code, state, after));
 }
 
 /**
@@ -677,8 +726,7 @@ async function pattiMoveOnce(rawCode: string, token: string, action: unknown) {
  */
 export async function pattiTick(rawCode: string, token: string) {
   const store = await getStore();
-  const room = await loadRoom(store, normaliseCode(rawCode));
-  await playerByToken(store, room.code, token);
+  const { room } = await roomAndMe(store, normaliseCode(rawCode), token);
   const state = room.state;
   if (room.status !== "playing" || !state?.patti || state.patti.result || !state.deadline) return;
   if (Date.now() < state.deadline) return; // still thinking
@@ -704,7 +752,7 @@ export async function pattiTick(rawCode: string, token: string) {
   try {
     const after = { ...state, patti: p, seats, deadline: pattiDeadline(p, seats) };
     await saveRoom(store, room, { state: after });
-    await banter(store, room.code, state, after);
+    later(() => banter(store, room.code, state, after));
   } catch (e) {
     if (!(e instanceof RoomError && e.status === 409)) throw e; // someone else got there first
   }
@@ -788,7 +836,7 @@ async function saveExtra(store: RoomStore, room: RoomRow, state: StoredState, be
   const next = { ...extraStored(after, state.seats), ...keep(state) };
   await saveRoom(store, room, { state: next });
   await payExtra(store, room, before, after, state.seats, state.gameId);
-  await banter(store, room.code, state, next);
+  later(() => banter(store, room.code, state, next));
 }
 
 /** A move at a Bluff, Paanch, Bhabhi or G Patta table by the player at this phone. */
@@ -797,8 +845,8 @@ export async function extraMove(rawCode: string, token: string, move: unknown) {
 }
 async function extraMoveOnce(rawCode: string, token: string, move: unknown) {
   const store = await getStore();
-  const room = await loadRoom(store, normaliseCode(rawCode));
-  const seat = await mySeatIn(store, room, token);
+  const { room, me } = await roomAndMe(store, normaliseCode(rawCode), token);
+  const seat = seatOf(room, me);
   const state = room.state!;
   if (!state.extra) throw new RoomError("This table plays something else");
   let next: ExtraStored;
@@ -817,8 +865,7 @@ async function extraMoveOnce(rawCode: string, token: string, move: unknown) {
  */
 export async function extraTick(rawCode: string, token: string) {
   const store = await getStore();
-  const room = await loadRoom(store, normaliseCode(rawCode));
-  await playerByToken(store, room.code, token);
+  const { room } = await roomAndMe(store, normaliseCode(rawCode), token);
   const state = room.state;
   if (room.status !== "playing" || !state?.extra || extraOver(state.extra) || !state.deadline) return;
   if (Date.now() < state.deadline) return; // still thinking
@@ -854,9 +901,8 @@ export async function extraTick(rawCode: string, token: string) {
   }
 }
 
-async function mySeatIn(store: RoomStore, room: RoomRow, token: string): Promise<Seat> {
+function seatOf(room: RoomRow, me: PlayerRow): Seat {
   if (room.status !== "playing" || !room.state) throw new RoomError("The game hasn't started");
-  const me = await playerByToken(store, room.code, token);
   const entry = room.state.seats.find((s) => s.playerId === me.id);
   if (!entry) throw new RoomError("You're watching this table, not playing", 403);
   return entry.seat;
@@ -867,8 +913,8 @@ export async function play(rawCode: string, token: string, card: unknown, auto?:
 }
 async function playOnce(rawCode: string, token: string, card: unknown, auto?: unknown) {
   const store = await getStore();
-  const room = await loadRoom(store, normaliseCode(rawCode));
-  const seat = await mySeatIn(store, room, token);
+  const { room, me } = await roomAndMe(store, normaliseCode(rawCode), token);
+  const seat = seatOf(room, me);
   const state = room.state!;
   if (state.patti) throw new RoomError("This table plays 3 Patti");
   if (state.extra) throw new RoomError(`This table plays ${GAMES[state.extra.game].name}`);
@@ -879,7 +925,7 @@ async function playOnce(rawCode: string, token: string, card: unknown, auto?: un
   const after = { ...nextState(state.game, game, seats), ...keep(state) };
   await saveRoom(store, room, { state: after });
   await payRungSeries(store, room.code, state.game, game, seats, state.gameId);
-  await banter(store, room.code, state, after);
+  later(() => banter(store, room.code, state, after));
 }
 
 /**
@@ -888,8 +934,7 @@ async function playOnce(rawCode: string, token: string, card: unknown, auto?: un
  */
 export async function timeoutTurn(rawCode: string, token: string) {
   const store = await getStore();
-  const room = await loadRoom(store, normaliseCode(rawCode));
-  await playerByToken(store, room.code, token);
+  const { room } = await roomAndMe(store, normaliseCode(rawCode), token);
   const state = room.state;
   if (room.status !== "playing" || !state || state.patti || state.extra || state.game.deal.result || !state.deadline) return;
   if (Date.now() < state.deadline) return; // still thinking
@@ -904,7 +949,7 @@ export async function timeoutTurn(rawCode: string, token: string) {
     const after = { ...nextState(state.game, game, seats), ...keep(state) };
     await saveRoom(store, room, { state: after });
     await payRungSeries(store, room.code, state.game, game, seats, state.gameId);
-    await banter(store, room.code, state, after);
+    later(() => banter(store, room.code, state, after));
   } catch (e) {
     if (!(e instanceof RoomError && e.status === 409)) throw e; // someone else got there first
   }
@@ -915,8 +960,8 @@ export async function nextDeal(rawCode: string, token: string) {
 }
 async function nextDealOnce(rawCode: string, token: string) {
   const store = await getStore();
-  const room = await loadRoom(store, normaliseCode(rawCode));
-  await mySeatIn(store, room, token);
+  const { room, me } = await roomAndMe(store, normaliseCode(rawCode), token);
+  seatOf(room, me);
   const state = room.state!;
   if (state.patti) return pattiNextDeal(store, room, state as StoredState & { patti: PattiState });
   // Bluff deals its own next round (see extraTick); the other three are one game from start to finish.
@@ -943,8 +988,7 @@ async function nextDealOnce(rawCode: string, token: string) {
 /** Gives every seat whose player left more than AWAY_SECONDS ago to a computer. Safe to call by anyone, any time. */
 export async function reapAway(rawCode: string, token: string) {
   const store = await getStore();
-  const room = await loadRoom(store, normaliseCode(rawCode));
-  await playerByToken(store, room.code, token);
+  const { room } = await roomAndMe(store, normaliseCode(rawCode), token);
   const state = room.state;
   if (room.status !== "playing" || !state) return;
   const now = Date.now();
@@ -971,8 +1015,7 @@ export async function reapAway(rawCode: string, token: string) {
 export async function leaveRoom(rawCode: string, token: string) {
   const store = await getStore();
   const code = normaliseCode(rawCode);
-  const room = await loadRoom(store, code);
-  const me = await playerByToken(store, code, token);
+  const { room, me } = await roomAndMe(store, code, token);
   await store.deletePlayer(code, me.id);
 
   const rest = await store.listPlayers(code);
@@ -1065,8 +1108,7 @@ export async function listChat(rawCode: string, token: string): Promise<ChatMess
 export async function sendChat(rawCode: string, token: string, body: { text?: unknown; sticker?: unknown }) {
   const store = await getStore();
   const code = normaliseCode(rawCode);
-  const room = await loadRoom(store, code);
-  const me = await playerByToken(store, code, token);
+  const { room, me } = await roomAndMe(store, code, token);
 
   const text = clean(body.text).slice(0, CHAT_MAX).trim();
   const sticker = typeof body.sticker === "string" && STICKER_ID.test(body.sticker) ? body.sticker : undefined;
@@ -1214,8 +1256,7 @@ export async function joinQuick(rawGame: unknown, name: unknown, avatar?: unknow
 export async function pollQuick(rawCode: string, token: string): Promise<RoomView> {
   const store = await getStore();
   const code = normaliseCode(rawCode);
-  const room = await loadRoom(store, code);
-  const me = await playerByToken(store, code, token);
+  const { room, me } = await roomAndMe(store, code, token);
   if (room.status === "lobby" && room.quick) {
     await store.seePlayer(code, me.id);
     const now = Date.now();
@@ -1294,7 +1335,7 @@ async function startQuick(store: RoomStore, code: string) {
     }
     throw e;
   }
-  await banter(store, code, null, state);
+  later(() => banter(store, code, null, state));
 }
 
 // ───────────── quick match: the computer players' few words ─────────────

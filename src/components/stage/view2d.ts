@@ -55,7 +55,8 @@ function wideTableShot(aspect: number, short: boolean): Shot {
   const fov = short ? 44 : 40;
   const t = Math.tan((fov * Math.PI) / 360);
   // steep enough that the felt stands tall on the screen (more room for the cards dealt across)
-  const dir = norm([0, short ? 1.25 : 1.45, 1]);
+  // an upright phone looks down steeper still (as its old shot did), so the felt stands tall on a tall screen
+  const dir = norm([0, short ? 1.25 : aspect <= 0.6 ? 2.3 : aspect < 0.8 ? 1.75 : 1.45, 1]);
   const at: Vec = [0, TABLE_TOP, 0.15];
   const head: Vec = [0, 2.02, -SEAT_RADIUS];
   const rimX = (TOP_HALF + 0.08) * TABLE_SCALE;
@@ -70,8 +71,11 @@ function wideTableShot(aspect: number, short: boolean): Shot {
   const top = short ? 0.02 : 0.075;
   // an upright tablet keeps the phone's layout: the table runs the full width, under the hand
   const upright = aspect < 0.9;
-  const bottom = short ? 1.2 : upright ? 1.12 : 0.99;
-  const maxW = short ? 0.6 : upright ? 0.94 : 0.64;
+  // an upright phone: the whole table in view, head across to the near rail, its corners inside the screen
+  // (an upright phone in Safari, its bars showing, is wider than the full-screen shot: ~0.6-0.75)
+  const phone = aspect < 0.8;
+  const bottom = short ? 1.2 : phone ? 0.96 : upright ? 1.12 : 0.99;
+  const maxW = short ? 0.6 : phone ? 0.97 : upright ? 0.94 : 0.64;
   const ndc = (d: number) => {
     const pos = along(at, dir, d);
     const f = norm(sub(at, pos));
@@ -142,7 +146,8 @@ export interface View {
 
 export function makeView(look: LookId, w: number, h: number): View {
   const aspect = w / Math.max(h, 1);
-  const shot = shotFor(look, aspect, h < 560);
+  // "short" is a phone on its side; an upright phone with Safari's bars showing can be under 560 tall too
+  const shot = shotFor(look, aspect, h < 560 && aspect > 1);
   const f = norm(sub(shot.look, shot.pos));
   const r = norm(cross(f, [0, 1, 0]));
   const u = cross(r, f);
@@ -259,7 +264,9 @@ export function makePlateView(look: LookId, w: number, h: number): View & { crop
   const base = makeView(look, bw, bh);
   const s = Math.max(w / bw, h / bh);
   const ox = (w - bw * s) / 2;
-  const oy = (h - bh * s) / 2;
+  // a screen wider than the picture (iPhone SE) crops top and bottom: keep the top (the player across)
+  // and let the bottom go, which sits under your hand anyway
+  const oy = (h - bh * s) * 0.15;
   const px = (p: Vec): [number, number] => {
     const [x, y] = base.px(p);
     return [x * s + ox, y * s + oy];

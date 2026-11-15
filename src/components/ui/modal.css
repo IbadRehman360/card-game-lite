@@ -363,7 +363,7 @@ html[data-motion="reduce"] .modal-panel {
 }
 
 /* ── short sideways phones ── */
-@media (max-height: 520px) {
+@media (max-height: 520px) and (orientation: landscape) {
   :root:root .result-card,
   :root:root .pn-end-card,
   :root:root .patti-ask {

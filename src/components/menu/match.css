@@ -168,13 +168,140 @@
   max-width: 280px;
   margin: 0 auto;
 }
-.match .lobby-label.match-players {
-  margin: 14px 0 8px;
+:is(.match, .lobby-host) .lobby-label.match-players {
+  margin: -4px 0 8px;
   text-align: center;
 }
 
 /* empty seats: no sub line now, so centre the dots and "Searching…" in the box */
-.match .lobby-seat[data-filled="false"] {
+:is(.match, .lobby-host) .lobby-seat[data-filled="false"] {
   align-content: center;
   justify-content: center;
+}
+
+/* seat cards drawn like the profile's character cards: a dark tile with an ink edge, a round portrait, the name in caps */
+:root :is(.match, .lobby-host) .lobby-seat[data-filled="true"] {
+  border: 3px solid #2b1704;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #3a291b, #2a1d13);
+  box-shadow: inset 0 0 0 1px rgba(242, 193, 78, 0.35), inset 0 -4px 0 rgba(0, 0, 0, 0.25), 0 4px 0 rgba(0, 0, 0, 0.45);
+}
+:root :is(.match, .lobby-host) .lobby-seat[data-me="true"] {
+  background: linear-gradient(180deg, #4a3520, #33241a);
+  box-shadow: inset 0 -4px 0 rgba(120, 80, 30, 0.25), 0 4px 0 rgba(0, 0, 0, 0.45), 0 0 0 3px #ffd75e;
+}
+:root :is(.match, .lobby-host) .lobby-seat[data-filled="true"] .lobby-ring {
+  border: 3px solid #2b1704;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.18);
+  background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.28), transparent 65%), linear-gradient(160deg, color-mix(in srgb, var(--accent) 85%, #fff), color-mix(in srgb, var(--accent) 70%, #000));
+}
+:root :is(.match, .lobby-host) .lobby-seat[data-filled="true"] .lobby-name {
+  font: 800 14px/1.2 var(--font-oswald), sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f4ecd8;
+}
+:root :is(.match, .lobby-host) .lobby-seat[data-me="true"] .lobby-name {
+  color: #ffd873;
+}
+
+/* finding players: no panel behind the seats, and a plain "VS" between the sides (no disc, no rules) */
+:root :is(.match, .lobby-host) .lobby-teams {
+  border: 0;
+  background: none;
+  box-shadow: none;
+  padding: 0;
+}
+:root :is(.match, .lobby-host) .lobby-vs::before,
+:root :is(.match, .lobby-host) .lobby-vs::after {
+  display: none;
+}
+:root :is(.match, .lobby-host) .lobby-vs,
+:root :is(.match, .lobby-host) .lobby-vs span {
+  width: auto;
+  height: auto;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+:root :is(.match, .lobby-host) .lobby-vs span {
+  font: 800 16px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.08em;
+  color: #ffd873;
+  text-shadow: 0 2px 0 #2b1704;
+}
+/* empty seats: a quiet dashed outline only */
+:root :is(.match, .lobby-host) .lobby-seat[data-filled="false"] {
+  background: rgba(0, 0, 0, 0.18);
+  border-color: rgba(242, 193, 78, 0.22);
+}
+:root :is(.match, .lobby-host) .lobby-vs {
+  display: flex;
+  justify-content: center;
+  align-self: stretch;
+  width: 100%;
+  margin: 2px 0;
+}
+:root :is(.match, .lobby-host) .lobby-seat[data-filled="false"] {
+  background: rgba(14, 8, 4, 0.62);
+  border-color: rgba(242, 193, 78, 0.3);
+}
+:root :is(.match, .lobby-host) .lobby-seat[data-filled="false"] {
+  background: rgba(20, 12, 7, 0.86);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+/* Cancel: built like the seat cards (same border, wood gradient, inner gold line, drop) */
+:root:root .match .match-cancel {
+  min-height: 48px;
+  border: 3px solid #2b1704;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #3a291b, #2a1d13);
+  box-shadow: inset 0 0 0 1px rgba(242, 193, 78, 0.35), inset 0 -4px 0 rgba(0, 0, 0, 0.25), 0 4px 0 rgba(0, 0, 0, 0.45);
+  font: 800 16px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffe7b0;
+}
+:root:root .match .match-cancel:active:not(:disabled) {
+  translate: 0 3px;
+  box-shadow: inset 0 0 0 1px rgba(242, 193, 78, 0.35), inset 0 -2px 0 rgba(0, 0, 0, 0.25), 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+/* empty seats: the same wood card as the others and Cancel, just quieter */
+:root:root :is(.match, .lobby-host) .lobby-seat[data-filled="false"] {
+  border: 3px solid #2b1704;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #3a291b, #2a1d13);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: inset 0 0 0 1px rgba(242, 193, 78, 0.18), inset 0 -4px 0 rgba(0, 0, 0, 0.25), 0 4px 0 rgba(0, 0, 0, 0.45);
+}
+:root:root :is(.match, .lobby-host) .lobby-seat[data-filled="false"] .lobby-name {
+  color: rgba(255, 231, 176, 0.6);
+}
+/* empty seats and Cancel: see-through dark glass, a soft gold edge */
+:root:root :is(.match, .lobby-host) .lobby-seat[data-filled="false"],
+:root:root .match .match-cancel {
+  border: 1.5px solid rgba(242, 193, 78, 0.35);
+  background: rgba(10, 6, 3, 0.45);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+:root:root .match .match-cancel:active:not(:disabled) {
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
+}
+/* breathing room above the title */
+:root .match .match-head {
+  margin-top: 18px;
+}
+/* host lobby: no team boxes behind the seats, like Finding players */
+:root .lobby-host .lobby-team[data-tone] {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+:root .lobby-host .lobby-vs {
+  margin: 0;
 }

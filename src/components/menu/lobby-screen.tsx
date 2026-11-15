@@ -127,7 +127,7 @@ export function LobbyScreen({
                   {t}
                 </i>
               ))
-            : "Plays itself"}
+            : null}
         </span>
       </button>
     );
@@ -153,7 +153,7 @@ export function LobbyScreen({
   const order = Array.from({ length: seats }, (_, i) => ((mySeat < 0 ? 0 : mySeat) + i) % seats);
 
   return (
-    <div className="lobby">
+    <div className="lobby lobby-host">
       <div className="lobby-top">
         <button
           type="button"
@@ -190,9 +190,6 @@ export function LobbyScreen({
 
       <section className="lobby-teams">
         <div className="lobby-row">
-          <p className="lobby-label">
-            Players {humans}/{seats}
-          </p>
           {isHost && humans > 1 && (
             <button
               type="button"

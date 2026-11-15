@@ -9,6 +9,7 @@ import {
   extraMove,
   extraTick,
   getRoomView,
+  moveThenView,
   joinRoom,
   leaveRoom,
   movePlayer,
@@ -50,6 +51,22 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
       case "leave":
         return leaveRoom(code, token);
     }
+    // A game move: the reply's view is built from what the move read and wrote (two database trips in all).
+    const game: Record<string, () => Promise<unknown>> = {
+      play: () => play(code, token, body.card, body.auto),
+      patti: () => pattiMove(code, token, body.move),
+      // Bluff, Paanch, Bhabhi and G Patta all move through these two.
+      extraMove: () => extraMove(code, token, body.move),
+      extraTick: () => extraTick(code, token),
+      tick: () => pattiTick(code, token),
+      timeout: () => timeoutTurn(code, token),
+      reap: () => reapAway(code, token),
+      // back at the table after the phone went quiet (rejoining after a reload, a closed app or lost signal)
+      back: () => comeBack(code, token),
+      next: () => nextDeal(code, token),
+    };
+    const gameMove = typeof body.action === "string" && Object.hasOwn(game, body.action) ? game[body.action] : null;
+    if (gameMove) return { ok: true, view: await moveThenView(code, token, gameMove) };
     switch (body.action) {
       case "seat":
         await chooseSeat(code, token, body.seat);
@@ -65,35 +82,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
         break;
       case "start":
         await startGame(code, token);
-        break;
-      case "play":
-        await play(code, token, body.card, body.auto);
-        break;
-      case "patti":
-        await pattiMove(code, token, body.move);
-        break;
-      // Bluff, Paanch, Bhabhi and G Patta all move through these two.
-      case "extraMove":
-        await extraMove(code, token, body.move);
-        break;
-      case "extraTick":
-        await extraTick(code, token);
-        break;
-      case "tick":
-        await pattiTick(code, token);
-        break;
-      case "timeout":
-        await timeoutTurn(code, token);
-        break;
-      case "reap":
-        await reapAway(code, token);
-        break;
-      // back at the table after the phone went quiet (rejoining after a reload, a closed app or lost signal)
-      case "back":
-        await comeBack(code, token);
-        break;
-      case "next":
-        await nextDeal(code, token);
         break;
       default:
         throw new RoomError("Unknown action");

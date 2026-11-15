@@ -712,7 +712,8 @@ export function MainMenu() {
           </svg>
         </button>
       )}
-      {(scene === "menu" || scene === "play") && (
+      {/* at the table the corner holds only Pause: mute lives in Pause → Settings */}
+      {scene === "menu" && (
         <button
           type="button"
           className="icon-button corner-mute"
@@ -829,6 +830,8 @@ export function MainMenu() {
             } } : null}
           />
         )}
+        {/* your move is on its way to the table: a small spinner, shown only if it takes a moment */}
+        {scene === "play" && online && net.moving && <span className="move-wait" role="status" aria-label="Sending your move" />}
         {scene === "play" && isPatti && patti && (
           <PattiScreen
             game={patti}

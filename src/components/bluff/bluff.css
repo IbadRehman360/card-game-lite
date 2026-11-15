@@ -523,7 +523,7 @@
   }
 }
 /* small sideways phones */
-@media (max-height: 460px) {
+@media (max-height: 460px) and (orientation: landscape) {
   .bluff-hand {
     --cw: clamp(44px, 15dvh, 66px);
   }
@@ -566,7 +566,7 @@
     --cw: min(96px, 15dvh);
   }
 }
-@media (max-height: 560px) {
+@media (max-height: 560px) and (orientation: landscape) {
   .bluff-hand {
     --cw: min(66px, 17dvh);
   }
@@ -784,7 +784,7 @@
   color: rgba(244, 236, 216, 0.6);
 }
 
-@media (max-height: 460px) {
+@media (max-height: 460px) and (orientation: landscape) {
   .bluff-reveal {
     gap: 5px;
     padding: 8px 14px 10px;
@@ -1088,7 +1088,7 @@ html[data-motion="reduce"] .bluff-shot-wait {
   outline: 2px solid #f2a03d;
   outline-offset: 2px;
 }
-@media (max-height: 460px) {
+@media (max-height: 460px) and (orientation: landscape) {
   .game.bluff .hud-top.bluff-hud {
     top: calc(env(safe-area-inset-top) + 10px);
   }

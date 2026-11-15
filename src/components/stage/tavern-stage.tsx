@@ -32,7 +32,7 @@ import {
 } from "./view2d";
 import { PattiTable, type PattiStageTable } from "./patti-table";
 import { BluffTable, type BluffStageTable } from "./bluff-table";
-import { ThemedTable } from "./table-theme";
+import { ThemedTable, hullPath } from "./table-theme";
 import "./stage2d.css";
 
 export type StageScene = "title" | "menu" | "profile" | "play";
@@ -326,10 +326,38 @@ function Room({
     const H = TOP_HALF;
     const D = TOP_DEPTH;
     const r = TOP_CORNER;
+    const S = TABLE_SCALE;
+    // the solid parts seen from the side: the outline of the top and the same outline lower down,
+    // wrapped in one shape (the table is convex, so its hull is what shows below the top)
+    const solid = (h: number, d: number, rr: number, y0: number, y1: number) =>
+      hullPath([...tableRect(h, d, rr, y0), ...tableRect(h, d, rr, y1)].map((p) => view.px(p)));
+    // a turned leg under each corner: radius (m) at each share of the way down, a bulb near the floor
+    const turn: [number, number][] = [
+      [0, 0.05], [0.07, 0.05], [0.09, 0.036], [0.42, 0.03], [0.56, 0.05], [0.68, 0.062],
+      [0.78, 0.05], [0.87, 0.032], [0.93, 0.046], [1, 0.042],
+    ];
+    const legTop = y - 0.18;
+    const leg = (sx: number, sz: number) => {
+      const x = sx * (H - 0.14) * S;
+      const z = sz * (D - 0.14) * S;
+      const at = (t: number, k: number, side: number) => {
+        const [px, py] = view.px([x + side * k, legTop * (1 - t), z]);
+        return `${px.toFixed(1)},${py.toFixed(1)}`;
+      };
+      const left = turn.map(([t, k]) => at(t, k, -1));
+      const right = turn.map(([t, k]) => at(t, k, 1)).reverse();
+      return `M${[...left, ...right].join("L")}Z`;
+    };
+    const nearZ = (D + 0.08) * S;
     return {
       // the same outlines as the 3D table (useSquareTable): slab, bevelled rim, felt, inlay, 36 studs
-      apron: pathOf(view, tableRect(H + 0.02, D + 0.02, r, y - 0.18)),
-      apronTop: pathOf(view, tableRect(H + 0.02, D + 0.02, r, y - 0.04)),
+      apron: solid(H + 0.02, D + 0.02, r, y - 0.04, y - 0.18),
+      face: solid(H + 0.08, D + 0.08, r + 0.09, y + 0.04, y - 0.04),
+      // where the rail's front face and the apron run on screen (top, bottom), for their light
+      faceY: [view.px([0, y + 0.04, nearZ])[1], view.px([0, y - 0.04, nearZ])[1], view.px([0, y - 0.18, nearZ])[1]] as [number, number, number],
+      legs: [leg(-1, -1), leg(1, -1), leg(-1, 1), leg(1, 1)],
+      shadow: pathOf(view, tableRect(H + 0.32, D + 0.3, r + 0.3, 0.002)),
+      ridge: pathOf(view, tableRect(H + 0.035, D + 0.035, r + 0.045, y + 0.045)),
       rim: pathOf(view, tableRect(H + 0.08, D + 0.08, r + 0.09, y + 0.04)),
       lip: pathOf(view, tableRect(H + 0.005, D + 0.005, r + 0.015, y + 0.03)),
       felt: pathOf(view, tableRect(H - 0.01, D - 0.01, r, y)),
@@ -337,8 +365,9 @@ function Room({
         view,
         tableRect(H - 0.1575, D - 0.1575, r - 0.1125, y + 0.001),
       ),
-      // a big turned square on the felt and a smaller one inside it (the felt's printed "boxes")
-      emblem: [0.62, 0.42].map((k) => {
+      // a turned square on the felt and a smaller one inside it (the felt's printed "boxes"), sized by
+      // the table: the outer one spans ~38% of the felt's short side, so it stays clear of the side hands
+      emblem: [0.38, 0.25].map((k) => {
         const a = Math.min(H, D) * k * TABLE_SCALE;
         return pathOf(view, [
           [0, y + 0.002, -a],
@@ -350,7 +379,12 @@ function Room({
       studs: spaced(
         tableRect(H + 0.035, D + 0.035, r + 0.045, y + 0.045, 16),
         36,
-      ).map((p) => view.px(p)),
+      ).map((p): [number, number, number] => {
+        const [sx, sy] = view.px(p);
+        // a stud's radius at its own distance (a 13 mm brass head)
+        const k = Math.abs(view.px([p[0] + 0.013, p[1], p[2]])[0] - sx);
+        return [sx, sy, k];
+      }),
     };
   }, [view]);
 

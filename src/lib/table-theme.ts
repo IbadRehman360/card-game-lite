@@ -43,20 +43,21 @@ export interface TableLook {
 }
 
 export const TABLE_LOOKS: Record<TableThemeId, TableLook> = {
-  // the house table: the oxblood felt, oak rail and copper studs the tavern always had (unchanged)
+  // the house table, as the title screen shows it: lamp-lit oxblood felt, a walnut rail with a lit
+  // bronze edge, a gold inlay and brass studs
   tavern: {
-    felt: ["#a8361f", "#952316", "#6c120b", "#4a0c06"],
+    felt: ["#bb4228", "#a2311c", "#741a0e", "#4a0c06"],
     pattern: "none",
     patternInk: "#000",
     patternOpacity: 0,
-    grain: null,
-    rail: ["#5a3214", "#522c0e", "#2e180a"],
-    railGrain: 0,
-    lip: "#8f5e2d",
+    grain: { src: "felt", opacity: 0.28 },
+    rail: ["#5e3416", "#4a280e", "#22110a"],
+    railGrain: 0.45,
+    lip: "#a46a33",
     seam: "#2b060d",
-    inlay: ["#c0631a"],
-    studs: ["#d07a2a"],
-    apron: ["#0a0200", "#1a0301"],
+    inlay: ["#e0a24a"],
+    studs: ["#f6c65a"],
+    apron: ["#070200", "#1a0a03"],
   },
   // a club's billiard-green baize, mahogany rail and a brass line
   baize: {

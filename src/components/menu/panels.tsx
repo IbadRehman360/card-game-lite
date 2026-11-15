@@ -132,8 +132,7 @@ export function SettingsPanel() {
   const tierName = tier === "low" ? "Smooth" : tier === "mid" ? "Balanced" : "Sharp";
   return (
     <div className="settings">
-      <section className="set-group" aria-labelledby="set-sound">
-        <h3 id="set-sound" className="set-head">Sound</h3>
+      <section className="set-group" aria-label="Sound">
         <div className="set-card">
           <Row as="label" label="Sound effects">
             <span className="range-wrap">
@@ -167,8 +166,7 @@ export function SettingsPanel() {
           />
         </div>
       </section>
-      <section className="set-group" aria-labelledby="set-display">
-        <h3 id="set-display" className="set-head">Display</h3>
+      <section className="set-group" aria-label="Display">
         <div className="set-card">
           <Row
             label="Graphics"

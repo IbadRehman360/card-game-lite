@@ -571,7 +571,7 @@
 }
 
 /* short sideways phones */
-@media (max-height: 500px) {
+@media (max-height: 500px) and (orientation: landscape) {
   .patti-hand {
     --cw: clamp(44px, 14dvh, 64px);
   }
@@ -617,7 +617,7 @@
     --cw: min(96px, 14dvh);
   }
 }
-@media (max-height: 560px) {
+@media (max-height: 560px) and (orientation: landscape) {
   .patti-hand {
     --cw: min(66px, 15dvh);
   }
@@ -678,7 +678,7 @@
 .patti-result .result-menu > span[aria-hidden] {
   opacity: 0.5;
 }
-@media (max-height: 500px) {
+@media (max-height: 500px) and (orientation: landscape) {
   .patti-result .patti-mini-card {
     --cw: 30px;
   }
@@ -912,7 +912,7 @@ html[data-motion="reduce"] .patti-pot-fly { animation: none; opacity: 0; }
   width: 15px;
   height: 15px;
 }
-@media (max-height: 500px) {
+@media (max-height: 500px) and (orientation: landscape) {
   .pr-faces .pr-pfp {
     width: 40px;
     height: 40px;
@@ -1086,4 +1086,14 @@ html[data-motion="reduce"] .patti-pot-fly { animation: none; opacity: 0; }
   box-shadow: inset 0 0 0 1px rgba(232, 176, 74, 0.5);
   font: 800 18px/1 var(--font-oswald), sans-serif;
   color: #ffd873;
+}
+
+/* 3 Patti's bottom row is buttons, not a bleeding hand: keep it fully on screen (Safari's bar included) */
+:root .my-side.patti-me {
+  bottom: calc(env(safe-area-inset-bottom) + 8px);
+}
+@media (max-height: 620px) and (orientation: portrait) {
+  :root .my-side.patti-me {
+    gap: 4px;
+  }
 }

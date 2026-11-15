@@ -15,7 +15,7 @@ import { CardFace, cardName } from "./playing-card";
 import type { SoloGame } from "./use-solo-game";
 import { DevPanel } from "./dev-panel";
 import { WinFlare } from "./win-flare";
-import { Portrait, SeatCount, SeatStat } from "./portrait";
+import { Portrait, SeatCount } from "./portrait";
 import { ChatButton, type ChatProps, useChatSound } from "./chat";
 import { Burst, EmoteButton, EmoteDeck, type LiveChat, useEmotes } from "./emotes";
 
@@ -114,13 +114,11 @@ export function GameScreen({
       {/* ── top bar: Rung and the series, slim pills like the old app ── */}
       <header className="hud-top">
         {snap.trump && (
-          <div className="hud-chip" data-set>
-            <span>Rung</span>
+          <div className="hud-chip hud-mini" data-set title="Rung (trumps)" aria-label={`Rung: ${SUIT_SYMBOL[snap.trump]}`}>
             <b className="hud-suit" data-red={isRed(snap.trump)}>{SUIT_SYMBOL[snap.trump]}</b>
           </div>
         )}
-        <div className="hud-chip" title={`First to ${target} points wins`}>
-          <span>Series</span>
+        <div className="hud-chip hud-mini" title={`Series: first to ${target} points wins`} aria-label={`Series ${game.score[0]} to ${game.score[1]}`}>
           <b className="hud-series">
             {game.score[0]}–{game.score[1]}
           </b>
@@ -163,12 +161,6 @@ export function GameScreen({
             )}
             <span className="seat-name">{names?.[s] || c.name}</span>
             <Burst message={lastFrom(s)} rel={s as 1 | 2 | 3} />
-            {/* the player across is a figure, not a picture: their count goes under the name */}
-            {s === 2 && (
-              <SeatStat icon={<i className="seat-card-ico" aria-hidden />} title="Cards in hand">
-                {snap.cardsLeft[s]}
-              </SeatStat>
-            )}
           </div>
         );
       })}

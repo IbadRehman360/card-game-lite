@@ -40,7 +40,7 @@
 /* On a phone's title screen the room sits a little lower, so the logo clears the bear. */
 @media (max-aspect-ratio: 9/10) {
   .room[data-scene="title"] .stage {
-    transform: translateY(7vh);
+    transform: translateY(7dvh);
   }
 }
 
@@ -338,13 +338,13 @@
   grid-template-rows: 1fr auto;
   justify-items: center;
   /* lifted a little off the bottom edge so the prompt sits on the dark band, not on the table legs */
-  padding: 0 16px calc(max(34px, calc(env(safe-area-inset-bottom) + 24px)) + 2vh);
+  padding: 0 16px calc(max(34px, calc(env(safe-area-inset-bottom) + 24px)) + 2dvh);
   cursor: pointer;
 }
 .title-logo {
   width: clamp(260px, 30vw, 520px);
   align-self: center;
-  margin-top: -4vh;
+  margin-top: -4dvh;
 }
 .title-prompt {
   font-family: var(--font-oswald), sans-serif;
@@ -380,7 +380,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: clamp(28px, 5vh, 56px);
+  gap: clamp(28px, 5dvh, 56px);
   padding: 32px var(--pad);
   width: min(600px, 42vw);
   box-sizing: content-box;
@@ -559,7 +559,7 @@
 }
 
 /* tighter on short screens */
-@media (max-height: 560px) {
+@media (max-height: 560px) and (orientation: landscape) {
   .home-body {
     gap: 12px;
   }
@@ -986,7 +986,7 @@ kbd + kbd {
   .title-logo {
     width: min(62vw, 270px);
     align-self: start;
-    margin-top: calc(env(safe-area-inset-top) + 9vh);
+    margin-top: calc(env(safe-area-inset-top) + 9dvh);
   }
   /* phones: about 5% of the screen higher, just under the table rail */
   .title {
@@ -1030,7 +1030,7 @@ kbd + kbd {
 
 /* ─── phones held sideways ─── */
 
-@media (max-height: 560px) {
+@media (max-height: 560px) and (orientation: landscape) {
   .title-logo {
     width: 220px;
     margin-top: 0;
@@ -2387,7 +2387,7 @@ kbd + kbd {
   font: 500 12px/1 var(--font-plex-mono), monospace;
   color: rgba(251, 231, 176, 0.7);
 }
-@media (max-height: 560px) {
+@media (max-height: 560px) and (orientation: landscape) {
   .home-body {
     gap: 16px;
   }
@@ -2759,7 +2759,7 @@ html[data-motion="reduce"] .arcade-tile {
 }
 
 /* short sideways phones: no logo, one line per row */
-@media (max-height: 520px) {
+@media (max-height: 520px) and (orientation: landscape) {
   .home-games .menu-logo {
     display: none;
   }
@@ -2909,7 +2909,7 @@ html[data-motion="reduce"] .gc {
   color: #e8b04a;
   filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.5));
 }
-@media (max-height: 560px) {
+@media (max-height: 560px) and (orientation: landscape) {
   .home-body:not(.home-games) .home-btn {
     font-size: 19px;
   }
@@ -3147,7 +3147,7 @@ html[data-motion="reduce"] .gc {
   font-size: 14px;
 }
 /* short sideways phones: a tighter picker */
-@media (max-height: 520px) {
+@media (max-height: 520px) and (orientation: landscape) {
   .rules-games {
     margin-bottom: 8px;
   }
@@ -3363,7 +3363,7 @@ label.set-row {
 .host-go {
   margin-top: 2px;
 }
-@media (max-height: 560px) {
+@media (max-height: 560px) and (orientation: landscape) {
   .host-setup {
     gap: 10px;
   }
@@ -3434,7 +3434,7 @@ label.set-row {
    sideways keep their own layout. */
 @media (min-aspect-ratio: 9/10) and (min-height: 561px) {
   .room[data-scene="play"] {
-    --col: min(100vw, max(720px, 118vh));
+    --col: min(100vw, max(720px, 118dvh));
     --gut: max(0px, calc((100vw - var(--col)) / 2));
   }
   .room[data-scene="play"] .corner-mute {
@@ -3880,4 +3880,200 @@ label.set-row {
 }
 :root .host-pills[aria-label="Boot"] button[aria-checked="true"]::before {
   box-shadow: 0 0 0 1.5px #2b1704;
+}
+
+/* sheet close (×): smaller again */
+:root .sheet-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+}
+:root .sheet-close svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ─── short screens (Safari's bars eat the height): the games list fits and scrolls inside its panel,
+       never under the top bar or off the bottom ─── */
+.menu:has(.home-games) .home-body.home-games {
+  min-height: 0;
+  max-height: 100%;
+}
+.home-games .games-panel {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* game tile: the red art fills the whole tile; player count and the play disc sit on its foot, over a dark fade */
+.games-panel .gc {
+  grid-template-areas: "art";
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto;
+  gap: 0;
+  padding: 6px;
+}
+.games-panel .gc-art {
+  aspect-ratio: 1 / 1;
+}
+.games-panel .gc-name {
+  margin: 0 2px 2px;
+  padding: 14px 6px 46px;
+  background: linear-gradient(180deg, transparent, rgba(20, 8, 6, 0.75) 30%, rgba(20, 8, 6, 0.92));
+  border-radius: 0 0 8px 8px;
+}
+.games-panel .gc-players {
+  position: absolute;
+  top: auto;
+  right: auto;
+  left: 15px;
+  bottom: 21px;
+  z-index: 2;
+  margin: 0;
+  color: rgba(255, 236, 200, 0.85);
+}
+.games-panel .gc-play {
+  position: absolute;
+  right: 13px;
+  bottom: 12px;
+  z-index: 2;
+  margin: 0;
+}
+/* no player count on the tiles (it stays in the button's label for screen readers) */
+.games-panel .gc-players {
+  display: none;
+}
+/* tile foot: the name on the left and the play disc on the right, one row along the bottom of the art */
+.games-panel .gc-name {
+  padding: 26px 48px 11px 10px;
+  text-align: left;
+  font-size: 18px;
+}
+.games-panel .gc-play {
+  right: 12px;
+  bottom: 11px;
+}
+.games-panel .gc-play {
+  right: 9px;
+  bottom: 9px;
+}
+.games-panel .gc-name {
+  padding-left: 8px;
+}
+
+/* short upright phones (iPhone SE, Safari bars showing): smaller Play / Host buttons */
+@media (orientation: portrait) and (max-height: 700px) {
+  :root .home-buttons .home-btn {
+    min-height: 0;
+    height: 50px;
+    padding-block: 0;
+    font-size: 17px;
+  }
+  :root .home-buttons {
+    gap: 10px;
+  }
+}
+/* play disc: gold fill with a light border */
+:root .games-panel .gc-play {
+  border: 1.5px solid rgba(255, 244, 220, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45), inset 0 -2px 0 rgba(0, 0, 0, 0.15);
+}
+/* play disc: no fill, a gold ring and a gold ▶ */
+:root .games-panel .gc-play {
+  border: 2px solid #f2b13a;
+  background: rgba(12, 7, 4, 0.45);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+:root .games-panel .gc-play::before {
+  border-left-color: #f2b13a;
+  translate: -30% -50%;
+}
+:root .games-panel .gc-play::before {
+  border-left-color: #fff;
+}
+/* games list scrolling: no scrollbar, soft fades top and bottom instead of a hard cut, room for the last row */
+:root .home-games .games-panel {
+  scrollbar-width: none;
+  padding: 6px 2px 18px;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 14px, #000 calc(100% - 18px), transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 14px, #000 calc(100% - 18px), transparent 100%);
+}
+:root .home-games .games-panel::-webkit-scrollbar {
+  display: none;
+}
+/* play disc a size smaller */
+:root .games-panel .gc-play {
+  width: 28px;
+  height: 28px;
+  border-width: 1.5px;
+}
+:root .games-panel .gc-play::before {
+  border-width: 5.5px 0 5.5px 8.5px;
+}
+:root .games-panel .gc-name {
+  padding-right: 40px;
+}
+/* host choices: one segmented switch, the picked half gold, the other quiet inside the same track */
+:root .host-pills {
+  gap: 0;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(10, 6, 3, 0.55);
+  box-shadow: inset 0 0 0 1.5px rgba(242, 193, 78, 0.3);
+}
+:root .host-pills button {
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  box-shadow: none;
+  font-size: 16px;
+  color: rgba(255, 231, 176, 0.7);
+  text-shadow: none;
+}
+:root .host-pills button:active {
+  box-shadow: none;
+}
+:root .host-pills button[aria-checked="true"] {
+  background: linear-gradient(#ffe27a, #f2b52a 55%, #d89a1c);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 2px 0 rgba(0, 0, 0, 0.35);
+  color: var(--ink);
+}
+/* Create table: the switch's gold, a size smaller, no extra ring */
+:root:root .host-go {
+  min-height: 0;
+  height: 48px;
+  border: 2px solid var(--ink, #2a170f);
+  border-radius: 12px;
+  background: linear-gradient(#ffe27a, #f2b52a 55%, #d89a1c);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 3px 0 rgba(0, 0, 0, 0.4);
+  font-size: 17px;
+  outline: none;
+}
+:root:root .host-go:focus-visible {
+  outline: 2px solid #fff3dc;
+  outline-offset: 2px;
+}
+:root:root .host-go .home-cost {
+  font-size: 13px;
+}
+/* sheet close ✕: a size smaller */
+:root .icon-button.sheet-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+:root .icon-button.sheet-close svg {
+  width: 16px;
+  height: 16px;
+}
+/* phones: no focus ring from the button being focused on open (there's no keyboard to need it) */
+@media (hover: none) {
+  :root:root .host-go:focus-visible {
+    outline: none;
+  }
 }

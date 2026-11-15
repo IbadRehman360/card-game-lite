@@ -70,7 +70,11 @@ export function MatchScreen({ game, match, onCancel }: { game: TableGame; match:
           )}
         </span>
         <span className="lobby-name">{s ? s.name : "Searching…"}</span>
-        {s && <span className="lobby-sub">{s.isMe ? <i data-tag="You">You</i> : "Ready"}</span>}
+        {s?.isMe && (
+          <span className="lobby-sub">
+            <i data-tag="You">You</i>
+          </span>
+        )}
       </div>
     );
   };

@@ -571,3 +571,11 @@ html[data-motion="reduce"] .prof-figure {
 .prof-namerow {
   margin-top: 4px;
 }
+/* rename field: shorter and smaller text */
+:root .prof-input.prof-input-inline {
+  width: min(60vw, 200px);
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 16px;
+}
