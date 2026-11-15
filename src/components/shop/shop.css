@@ -1070,3 +1070,85 @@ html[data-motion="reduce"] .coin-pill-delta { animation-duration: 1.2s; }
   font: 600 15px/1.3 var(--font-oswald), sans-serif;
   color: rgba(244, 236, 216, 0.6);
 }
+
+/* the balance sits centred under the SHOP title, the tabs on their own row below it */
+.shop .shop-bar {
+  flex-direction: column;
+  align-items: center;
+}
+.shop .shop-balance {
+  align-self: center;
+  margin-left: 8px; /* the coin hangs 8px off its left edge; this keeps the pair visually centred */
+}
+
+/* tiles: even breathing room inside, and a shorter, inset button with its label truly centred */
+.shop-body .shop-tile {
+  gap: 4px;
+  padding: 10px 12px 12px;
+}
+.shop-body .shop-tile .shop-art {
+  margin: 2px 0 4px;
+}
+.shop-body .shop-tile .shop-amount {
+  margin-bottom: 8px;
+  line-height: 1;
+}
+.shop-body .shop-tile .shop-buy {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 38px;
+  padding: 0 10px 3px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* button labels (Rs price, coin price): bold white with the app's dark ink outline, so they never blend into the gold */
+.shop-body .shop-tile .shop-buy,
+.shop-body .shop-tile .shop-buy .cost-tag.cost-tag-plain b {
+  font-family: var(--font-oswald), sans-serif;
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: 0.03em;
+  color: #fff;
+  text-shadow:
+    -1.5px -1.5px 0 #2b1704, 1.5px -1.5px 0 #2b1704, -1.5px 1.5px 0 #2b1704, 1.5px 1.5px 0 #2b1704,
+    0 -1.5px 0 #2b1704, 0 1.5px 0 #2b1704, -1.5px 0 0 #2b1704, 1.5px 0 0 #2b1704, 0 2.5px 0 #2b1704;
+}
+/* Use / In use keep their own dark label */
+.shop-body .shop-tile .shop-buy[data-state="use"],
+.shop-body .shop-tile .shop-buy[data-state="inuse"] {
+  color: #2b1704;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.shop-body .shop-tile .shop-buy .cost-tag.cost-tag-plain > svg {
+  width: 18px;
+  height: 18px;
+  filter: drop-shadow(0 1.5px 0 #2b1704);
+}
+
+/* tile names (WINE, NAVY, POUCH…): bigger and darker, less spaced, with a little room above */
+.shop-body .shop-tile .shop-tile-name {
+  margin-top: 2px;
+  font-family: var(--font-oswald), sans-serif;
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.2;
+  letter-spacing: 0.05em;
+  color: #4a2a0c;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+/* price labels: beat modal.css's shared dark gold-label (:root:root) so the white outlined text shows */
+:root:root .shop-body .shop-tile .shop-buy:not([data-state="use"]):not([data-state="inuse"]),
+:root:root .shop-body .shop-tile .shop-buy .cost-tag.cost-tag-plain b {
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-shadow:
+    -1.5px -1.5px 0 #2b1704, 1.5px -1.5px 0 #2b1704, -1.5px 1.5px 0 #2b1704, 1.5px 1.5px 0 #2b1704,
+    0 -1.5px 0 #2b1704, 0 1.5px 0 #2b1704, -1.5px 0 0 #2b1704, 1.5px 0 0 #2b1704, 0 3px 0 #2b1704;
+}

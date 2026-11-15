@@ -100,6 +100,7 @@ export function MenuScreen({
       ) : hosting ? (
         <div className="home-body home-host">
           <Logo className="menu-logo" />
+          <p className="home-game">{specFor(game).name}</p>
           <HostSettings
             key={game}
             game={game}

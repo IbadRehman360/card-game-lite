@@ -934,3 +934,156 @@ html[data-motion="reduce"] .patti-pot-fly { animation: none; opacity: 0; }
     margin-top: 8px;
   }
 }
+
+/* ─── deal result: your verdict first (coloured), then the pot winner ─── */
+:root:root .patti .patti-result {
+  gap: 12px;
+  text-align: center;
+}
+.pr-verdict {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px 12px;
+  border-radius: 14px;
+  border: 2px solid var(--pr-edge);
+  background: var(--pr-bg);
+  --pr-bg: linear-gradient(#3a2e22, #2a2018);
+  --pr-edge: rgba(244, 236, 216, 0.25);
+  --pr-ink: #f4ecd8;
+}
+.pr-verdict[data-tone="up"] {
+  --pr-bg: linear-gradient(#2f6b2a, #1d4a1a);
+  --pr-edge: #6fd35e;
+  --pr-ink: #b9f5a8;
+}
+.pr-verdict[data-tone="down"] {
+  --pr-bg: linear-gradient(#6e2420, #4a1613);
+  --pr-edge: #e0645a;
+  --pr-ink: #ffc2bb;
+}
+:root:root .patti .patti-result .pr-verdict-title {
+  margin: 0;
+  font: 800 26px/1.05 var(--font-oswald), sans-serif;
+  letter-spacing: 0.02em;
+  color: #fff;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
+}
+.pr-verdict-coins {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font: 800 30px/1 var(--font-oswald), sans-serif;
+  color: var(--pr-ink);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+}
+.pr-verdict-coins .patti-coin,
+.pr-verdict-coins svg {
+  width: 24px;
+  height: 24px;
+}
+.pr-verdict-why {
+  margin: 2px 0 0;
+  font: 600 14px/1.2 var(--font-oswald), sans-serif;
+  color: rgba(255, 255, 255, 0.78);
+}
+.pr-winner {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+.pr-winner-label {
+  font: 700 12px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(244, 236, 216, 0.55);
+}
+.pr-winner-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "pfp name amt" "hand hand hand";
+  align-items: center;
+  gap: 8px 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(232, 176, 74, 0.25);
+  text-align: left;
+}
+:root .pr-winner-row .pr-pfp {
+  grid-area: pfp;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+}
+.pr-winner-name {
+  grid-area: name;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.pr-winner-name b {
+  overflow: hidden;
+  font: 800 17px/1.1 var(--font-oswald), sans-serif;
+  color: #fff;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pr-winner-name small {
+  font: 700 13px/1.1 var(--font-oswald), sans-serif;
+  color: #e8b04a;
+}
+.pr-winner-row .pr-amount {
+  grid-area: amt;
+  font-size: 17px;
+  color: #ffd873;
+}
+.pr-winner-row .patti-mini,
+.pr-winner-row > :last-child:not(.pr-amount) {
+  grid-area: hand;
+  justify-self: center;
+}
+
+/* winner row: a bigger face in a gold ring, the name, "won the pot" + the hand, the coins as a gold chip */
+.pr-winner-row {
+  padding: 12px 14px;
+  background: linear-gradient(90deg, rgba(232, 176, 74, 0.16), rgba(0, 0, 0, 0.25) 60%);
+  box-shadow: inset 0 0 0 1.5px rgba(232, 176, 74, 0.45);
+}
+:root .pr-winner-row .pr-pfp {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2.5px #e8b04a, 0 3px 0 rgba(0, 0, 0, 0.5);
+}
+.pr-winner-name b {
+  font-size: 19px;
+}
+.pr-winner-name small {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(244, 236, 216, 0.7);
+}
+.pr-winner-name small em {
+  padding: 2px 8px 3px;
+  border-radius: 999px;
+  background: rgba(232, 176, 74, 0.2);
+  font-style: normal;
+  font-weight: 800;
+  color: #ffd873;
+}
+.pr-winner-row .pr-amount {
+  gap: 5px;
+  padding: 5px 11px 6px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(232, 176, 74, 0.5);
+  font: 800 18px/1 var(--font-oswald), sans-serif;
+  color: #ffd873;
+}

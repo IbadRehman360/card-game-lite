@@ -47,6 +47,7 @@ export function SeatedFigure({
   id,
   cards = false,
   table = false,
+  sip = false,
   className,
   style,
   title,
@@ -56,6 +57,8 @@ export function SeatedFigure({
   cards?: boolean;
   /** Draw a strip of table edge under the arms (on a page with no table of its own). */
   table?: boolean;
+  /** Hold a cutting chai in the right hand and lift it for a sip now and then (off when holding cards). */
+  sip?: boolean;
   className?: string;
   style?: CSSProperties;
   /** Accessible name; without it the picture is decorative. */
@@ -117,23 +120,54 @@ export function SeatedFigure({
 
         {/* the forearms rest on the edge: they stay put while the body breathes */}
         <g className="sit-arms">
-          {ARMS.map((d) => (
-            <g key={d}>
-              <path d={d} fill="none" strokeWidth="16" />
-              <path d={d} fill="none" stroke={k.shirt} strokeWidth="11.2" />
-            </g>
-          ))}
-          {cards && <Fan />}
-          {hands.map((x, i) => (
-            <g key={x}>
-              <ellipse cx={x} cy="119.5" rx="7" ry="5.6" fill={k.skin} />
-              <path
-                d={i === 0 ? `M${x + 2} 116.5v4M${x + 4.6} 117v3.4` : `M${x - 2} 116.5v4M${x - 4.6} 117v3.4`}
-                fill="none"
-                strokeWidth="1.2"
-              />
-            </g>
-          ))}
+          {ARMS.map((d, i) => {
+            const x = hands[i];
+            const arm = (
+              <>
+                <path d={d} fill="none" strokeWidth="16" />
+                <path d={d} fill="none" stroke={k.shirt} strokeWidth="11.2" />
+              </>
+            );
+            const hand = (
+              <>
+                <ellipse cx={x} cy="119.5" rx="7" ry="5.6" fill={k.skin} />
+                <path
+                  d={i === 0 ? `M${x + 2} 116.5v4M${x + 4.6} 117v3.4` : `M${x - 2} 116.5v4M${x - 4.6} 117v3.4`}
+                  fill="none"
+                  strokeWidth="1.2"
+                />
+              </>
+            );
+            // the right arm, with sip on: swings up from the shoulder, glass in hand, to the lips and back
+            if (i === 1 && sip && !cards) {
+              return (
+                <g key={d} className="sit-sip">
+                  {arm}
+                  <g className="sit-glass">
+                    <path d="M84 103h12l-1.8 17h-8.4z" fill="#fff" fillOpacity="0.45" />
+                    <path d="M84.7 107h10.6l-1.4 12.6h-7.8z" fill="#b8722f" stroke="none" />
+                    <path d="M84.7 107h10.6l-0.2 1.8H84.9z" fill="#e8c28c" stroke="none" />
+                    <path d="M84 103h12l-1.8 17h-8.4z" fill="none" strokeWidth="1.8" />
+                  </g>
+                  {hand}
+                </g>
+              );
+            }
+            // with cards, the fan sits over both forearms and under both hands
+            return (
+              <g key={d}>
+                {arm}
+                {cards && i === 1 && (
+                  <>
+                    <Fan />
+                    <ellipse cx={hands[0]} cy="119.5" rx="7" ry="5.6" fill={k.skin} />
+                    <path d={`M${hands[0] + 2} 116.5v4M${hands[0] + 4.6} 117v3.4`} fill="none" strokeWidth="1.2" />
+                  </>
+                )}
+                {hand}
+              </g>
+            );
+          })}
         </g>
       </g>
     </svg>

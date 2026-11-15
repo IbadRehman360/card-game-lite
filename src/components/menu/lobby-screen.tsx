@@ -6,6 +6,8 @@ import { SERIES_LENGTHS, seriesTarget } from "@/lib/game/engine";
 import { seatsFor, specFor } from "@/lib/game/table-games";
 import type { RoomView } from "@/lib/online/types";
 import { sfx } from "@/lib/sfx";
+import { useLevel } from "@/lib/stats";
+import { LevelBadge } from "@/components/ui/level-badge";
 import { Portrait } from "@/components/game/portrait";
 import { ErrorNote } from "./error-note";
 
@@ -32,6 +34,7 @@ export function LobbyScreen({
   act: Act;
   onLeave: () => void;
 }) {
+  const mine = useLevel().level;
   const [copied, setCopied] = useState(false);
   const [picked, setPicked] = useState<string | null>(null);
   const isHost = room.me.isHost;
@@ -104,7 +107,11 @@ export function LobbyScreen({
       >
         <span className="lobby-ring" aria-hidden>
           {s.name && c ? (
-            <Portrait id={c.id} accent={c.accent} className="lobby-pfp" />
+            <>
+              <Portrait id={c.id} accent={c.accent} className="lobby-pfp" />
+              {/* only your own level is known: no badge on anyone else rather than a made-up one */}
+              {s.isMe && <LevelBadge level={mine} size="sm" className="seat-lvl" />}
+            </>
           ) : (
             <svg viewBox="0 0 24 24">
               <rect x="4" y="5" width="16" height="11" rx="2" />

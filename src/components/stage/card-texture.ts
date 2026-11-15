@@ -271,32 +271,6 @@ function giltFrame(g: CanvasRenderingContext2D, x: number, y: number, w: number,
   g.restore();
 }
 
-/** The Ace's rosette: fine guilloché rings of gold behind the one big pip. */
-function rosette(g: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
-  g.save();
-  g.strokeStyle = gilt(g, cx - r, cy - r, r * 2, r * 2);
-  g.lineWidth = 2.2;
-  g.beginPath();
-  g.arc(cx, cy, r, 0, Math.PI * 2);
-  g.stroke();
-  g.globalAlpha = 0.5;
-  g.lineWidth = 0.9;
-  g.beginPath();
-  g.arc(cx, cy, r - 6, 0, Math.PI * 2);
-  g.stroke();
-  // interlaced loops round the ring, as on a banknote
-  const n = 28;
-  g.globalAlpha = 0.4;
-  g.lineWidth = 0.8;
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2;
-    g.beginPath();
-    g.arc(cx + Math.cos(a) * (r - 3), cy + Math.sin(a) * (r - 3), 9, 0, Math.PI * 2);
-    g.stroke();
-  }
-  g.restore();
-}
-
 /** The paper: ivory with a soft falloff to the edge, a linen grain, and a bevelled rim. */
 function paper(g: CanvasRenderingContext2D) {
   const bg = g.createRadialGradient(125, 150, 40, 125, 175, 250);
@@ -369,10 +343,8 @@ function drawFace(
 
   g.fillStyle = ink;
   if (rank === "A") {
-    giltFrame(g, 47, 18, 156, 314, 10);
-    // one big pip in a gilt rosette; the Ace of spades, by custom, a size larger
+    // one big pip; the Ace of spades, by custom, a size larger
     const spade = suit === "♠";
-    rosette(g, 125, 175, spade ? 64 : 56);
     const size = spade ? 84 : 72;
     suitAt(g, suit, 125 - size / 2, 175 - size / 2, size, false, ink);
   } else if (rank === "J" || rank === "Q" || rank === "K") {
@@ -418,7 +390,6 @@ function drawFace(
       suitAt(g, suit, cx - 8.5, cy - 8.5, 17, turn, ink);
     }
   } else {
-    giltFrame(g, 47, 18, 156, 314, 10);
     const size = rank === "9" || rank === "10" ? 50 : 56;
     for (const [x, y] of PIPS[rank] ?? []) suitAt(g, suit, x - size / 2, y - size / 2, size, y > PM, ink);
   }

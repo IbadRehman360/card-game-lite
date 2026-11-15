@@ -2081,3 +2081,63 @@ html[data-motion="reduce"] .win-spark { display: none; }
 html[data-motion="reduce"] .seat-count {
   animation: none;
 }
+
+/* the player across is drawn as a seated figure: no round picture over their chest, the name tag stays
+   and the count badge (and revolver) sit on either side of it */
+.seat-tag[data-spot="top"] .seat-pfp-wrap {
+  display: contents;
+}
+.seat-tag[data-spot="top"] .seat-pfp {
+  display: none;
+}
+.seat-tag[data-spot="top"] .seat-pfp-wrap .seat-count,
+.seat-tag[data-spot="top"] .seat-pfp-wrap .seat-gun {
+  top: 50%;
+  bottom: auto;
+  translate: 0 -50%;
+}
+.seat-tag[data-spot="top"] .seat-pfp-wrap .seat-count {
+  right: auto;
+  left: calc(100% + 6px);
+}
+.seat-tag[data-spot="top"] .seat-pfp-wrap .seat-gun {
+  left: auto;
+  right: calc(100% + 6px);
+}
+.seat-tag[data-spot="top"] .seat-pfp-wrap .bluff-bot {
+  top: -6px;
+}
+
+/* table callouts ("X sets Rung", sweeps…): smaller, so they don't cover the seats */
+:root .banner {
+  gap: 8px;
+  padding: 5px 12px;
+  font-size: clamp(13px, 3.4vw, 18px);
+  letter-spacing: 0.03em;
+  border-width: 2px;
+  box-shadow: 0 3px 0 #000;
+}
+:root .banner b {
+  width: 22px;
+  height: 26px;
+  font-size: 16px;
+}
+
+/* bottom row: a touch larger, with the turn timer in the middle lifted above the side buttons */
+:root .my-row {
+  align-items: center;
+}
+:root .my-row > * {
+  scale: 1.08;
+}
+:root .my-row .turn-plate {
+  translate: 0 -10px;
+}
+
+/* the turn pill ("LAIBA'S TURN"): smaller */
+:root .my-row .turn-plate,
+:root .my-row .turn-plate[data-on="true"] {
+  padding: 4px 12px 5px;
+  font-size: 13px;
+  border-width: 1.5px;
+}

@@ -358,61 +358,61 @@ export function PattiScreen({
       {result && showResult && (
         <div className="result" role="dialog" aria-modal="false" aria-label="Deal result">
           <div className="result-card patti-result">
-            {/* who took the pot: their face, their name, the coins */}
+            {/* 1. your result, first and in colour: won (green), lost (red), level (neutral) */}
+            {(() => {
+              const net = (result.won[0] ?? 0) - me.put;
+              const tone = game.bust ? "down" : net > 0 ? "up" : net < 0 ? "down" : "even";
+              const head = game.bust ? "Out of coins" : net > 0 ? "You won" : net < 0 ? "You lost" : "Even";
+              const why = game.bust
+                ? "Buy in to keep playing"
+                : me.folded
+                  ? "You packed"
+                  : result.winners.includes(0)
+                    ? result.winners.length > 1
+                      ? "You split the pot"
+                      : "Your hand was best"
+                    : "Your hand lost";
+              return (
+                <div className="pr-verdict" data-tone={tone}>
+                  <h2 className="result-title pr-verdict-title">{head}</h2>
+                  {!game.bust && (
+                    <p className="pr-verdict-coins">
+                      <Coin />
+                      {net > 0 ? "+" : net < 0 ? "−" : ""}
+                      {fmt(Math.abs(net))}
+                    </p>
+                  )}
+                  <p className="pr-verdict-why">{why}</p>
+                </div>
+              );
+            })()}
+            {/* 2. who took the pot, and with what */}
             {!game.bust && (
-              <div className="pr-faces" aria-hidden>
+              <div className="pr-winner">
                 {result.winners.map((w) => {
                   const wc = CHARACTERS[seatChars[w]] ?? CHARACTERS[0];
-                  return <Portrait key={w} id={wc.id} accent={wc.accent} className="pr-pfp" />;
+                  const v = result.values[w];
+                  const shown = result.shown.includes(w);
+                  return (
+                    <div className="pr-winner-row" key={w}>
+                      <Portrait id={wc.id} accent={wc.accent} className="pr-pfp" />
+                      <span className="pr-winner-name">
+                        <b>{w === 0 ? "You" : nameOf(w)}</b>
+                        <small>
+                          {result.winners.length > 1 ? "split the pot" : "won the pot"}
+                          {shown && v ? <em>{KIND_NAME[v.kind]}</em> : null}
+                        </small>
+                      </span>
+                      <span className="pr-amount">
+                        <Coin />
+                        {fmt(result.won[w])}
+                      </span>
+                      {shown && <MiniHand cards={state.hands[w]} />}
+                    </div>
+                  );
                 })}
               </div>
             )}
-            <h2 className="result-title pr-title" data-tone={result.won[0] > 0 ? "good" : "bad"}>
-              {game.bust ? (
-                "Out of coins"
-              ) : (
-                <>
-                  {result.winners.length > 1
-                    ? result.winners.includes(0)
-                      ? "Split pot"
-                      : `${result.winners.map(nameOf).join(" & ")} split it`
-                    : result.winners[0] === 0
-                      ? "You win"
-                      : `${nameOf(result.winners[0])} wins`}
-                  {result.winners.length === 1 && (
-                    <span className="pr-amount">
-                      <Coin />
-                      {fmt(result.won[result.winners[0]])}
-                    </span>
-                  )}
-                </>
-              )}
-            </h2>
-            {result.shown.some((s) => result.won[s] > 0) && (
-              <ul className="patti-shown">
-                {result.shown
-                  .filter((s) => result.won[s] > 0)
-                  .map((s) => (
-                    <li key={s}>
-                      <MiniHand cards={state.hands[s]} />
-                      <span className="patti-shown-hand">{result.values[s] ? KIND_NAME[result.values[s]!.kind] : ""}</span>
-                    </li>
-                  ))}
-              </ul>
-            )}
-            {(() => {
-              const net = (result.won[0] ?? 0) - me.put;
-              return (
-                <p className="patti-mine">
-                  <span>You</span>
-                  <em className="pr-chip" data-tone={net > 0 ? "up" : net < 0 ? "down" : "even"}>
-                    <Coin />
-                    {net > 0 ? "+" : net < 0 ? "−" : ""}
-                    {fmt(Math.abs(net))}
-                  </em>
-                </p>
-              );
-            })()}
             <div className="result-actions">
               {game.bust ? (
                 <button type="button" className="result-next" autoFocus onClick={game.rebuy}>

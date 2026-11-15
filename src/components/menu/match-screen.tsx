@@ -5,10 +5,11 @@ import { CHARACTERS } from "@/lib/characters";
 import { seatsFor, specFor, type TableGame } from "@/lib/game/table-games";
 import type { MatchView } from "@/lib/online/types";
 import { sfx } from "@/lib/sfx";
+import { botLevel, useLevel } from "@/lib/stats";
+import { LevelBadge } from "@/components/ui/level-badge";
 import { Portrait } from "@/components/game/portrait";
 import "./match.css";
 
-/** How long the search screen says it may take (the server fills the table within about this). */
 const SEARCH_SECONDS = 30;
 
 /**
@@ -19,6 +20,7 @@ const SEARCH_SECONDS = 30;
  */
 export function MatchScreen({ game, match, onCancel }: { game: TableGame; match: MatchView | null; onCancel: () => void }) {
   const spec = specFor(game);
+  const mine = useLevel().level;
   const seats: MatchView["seats"] = match?.seats ?? Array.from({ length: seatsFor(game, undefined) }, () => null);
   const count = seats.length;
   const filled = seats.filter(Boolean).length;
@@ -39,7 +41,6 @@ export function MatchScreen({ game, match, onCancel }: { game: TableGame; match:
     return () => window.clearInterval(t);
   }, []);
   const secs = Math.floor((now - since) / 1000);
-  const clock = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
 
   const mySeat = Math.max(0, seats.findIndex((s) => s?.isMe));
   const slot = (seat: number) => {
@@ -55,7 +56,11 @@ export function MatchScreen({ game, match, onCancel }: { game: TableGame; match:
       >
         <span className="lobby-ring" aria-hidden>
           {s ? (
-            <Portrait id={s.avatar} accent={c?.accent ?? "#888"} className="lobby-pfp" />
+            <>
+              <Portrait id={s.avatar} accent={c?.accent ?? "#888"} className="lobby-pfp" />
+              {/* quick-match seats carry no level: yours is real, the others get a steady one from their name */}
+              <LevelBadge level={s.isMe ? mine : botLevel(s.name)} size="sm" className="seat-lvl" />
+            </>
           ) : (
             <span className="match-dots">
               <i />
@@ -65,7 +70,7 @@ export function MatchScreen({ game, match, onCancel }: { game: TableGame; match:
           )}
         </span>
         <span className="lobby-name">{s ? s.name : "Searching…"}</span>
-        <span className="lobby-sub">{s?.isMe ? <i data-tag="You">You</i> : s ? "Ready" : "Finding a player"}</span>
+        {s && <span className="lobby-sub">{s.isMe ? <i data-tag="You">You</i> : "Ready"}</span>}
       </div>
     );
   };
@@ -102,21 +107,15 @@ export function MatchScreen({ game, match, onCancel }: { game: TableGame; match:
         </button>
       </div>
 
-      <section className="lobby-code-wrap match-head">
-        <p className="lobby-label">{spec.name} · Quick match</p>
-        <h2 className="match-title" aria-live="polite">
-          {starting ? "Starting…" : "Finding players"}
-        </h2>
+      <section className="match-head" aria-live="polite">
+        <h2 className="match-title">{starting ? "Starting…" : "Finding players"}</h2>
         <div className="match-progress" aria-hidden>
           <i style={{ width: `${starting ? 100 : Math.min(96, (secs / SEARCH_SECONDS) * 100)}%` }} />
         </div>
-        <p className="lobby-hint match-count">
-          {filled}/{count} players · {clock}
-        </p>
       </section>
 
       <p className="lobby-label match-players">
-        Players {filled}/{count}
+        Players <b>{filled}/{count}</b>
       </p>
       <section className="lobby-teams">
         {hasTeams ? (
@@ -135,7 +134,6 @@ export function MatchScreen({ game, match, onCancel }: { game: TableGame; match:
       </section>
 
       <section className="lobby-foot">
-        <p className="lobby-wait">{starting ? "Dealing the cards…" : `Up to ${SEARCH_SECONDS} seconds`}</p>
         <button
           type="button"
           className="home-btn home-btn-ghost match-cancel"

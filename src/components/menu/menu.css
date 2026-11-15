@@ -1275,6 +1275,7 @@ kbd + kbd {
   border-color: rgba(242, 193, 78, 0.45);
 }
 .lobby-ring {
+  position: relative;
   grid-row: span 2;
   display: grid;
   place-items: center;
@@ -1288,6 +1289,12 @@ kbd + kbd {
 .lobby-seat[data-filled="false"] .lobby-ring {
   background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.6);
+}
+.lobby-ring .seat-lvl {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  z-index: 1;
 }
 .lobby-ring svg {
   width: 20px;
@@ -2559,7 +2566,8 @@ html[data-motion="reduce"] .arcade-tile {
 }
 .home-games .menu-logo {
   flex: none;
-  width: clamp(120px, 15dvh, 210px);
+  width: clamp(168px, 21dvh, 294px);
+  margin-bottom: 16px;
 }
 .games-panel {
   width: 100%;
@@ -3083,7 +3091,8 @@ html[data-motion="reduce"] .gc {
     gap: 10px;
   }
   .home-games .menu-logo {
-    width: clamp(96px, 11dvh, 140px);
+    width: clamp(134px, 15.4dvh, 196px);
+    margin-bottom: 14px;
   }
   .games-panel {
     padding: 8px;
@@ -3093,7 +3102,7 @@ html[data-motion="reduce"] .gc {
     --row: clamp(
       50px,
       calc(
-          (100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 60px - 12px - 11dvh * 0.42 - 10px - 19px - 40px) / 6
+          (100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 60px - 12px - 15.4dvh * 0.42 - 14px - 10px - 19px - 40px) / 6
         ),
       104px
     );
@@ -3452,6 +3461,7 @@ label.set-row {
 .games-panel .games {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-auto-rows: auto;
+  align-content: start;
   gap: 11px;
   padding: 0 4px 4px;
 }
@@ -3490,11 +3500,20 @@ label.set-row {
 /* the art leads; the name sits under it in the app's outlined title type (like BAAZI / SHOP) */
 .games-panel .gc {
   position: relative;
-  gap: 0;
+  display: grid;
+  grid-template-areas: "art" "play";
+  /* the old row layout gave .gc three columns (art | text | price); one column here */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: stretch;
+  height: auto;
+  min-height: 0;
+  justify-items: stretch;
+  gap: 9px;
   padding: 7px 7px 9px;
 }
 .games-panel .gc-art {
-  order: 1;
+  grid-area: art;
   flex: none;
   width: 100%;
   height: auto;
@@ -3504,10 +3523,17 @@ label.set-row {
   border-radius: 9px;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
 }
+/* the name sits over the bottom of the art, on a dark fade */
 .games-panel .gc-name {
-  order: 2;
+  grid-area: art;
+  align-self: end;
+  z-index: 1;
   max-width: 100%;
-  margin: 8px 0 8px;
+  margin: 0 2px 2px;
+  padding: 18px 6px 7px;
+  border-radius: 0 0 8px 8px;
+  background: linear-gradient(180deg, transparent, rgba(20, 8, 6, 0.85) 70%);
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3536,7 +3562,8 @@ label.set-row {
   opacity: 1;
 }
 .games-panel .gc-play {
-  order: 3;
+  grid-area: play;
+  align-self: end;
   box-sizing: border-box;
   width: 100%;
   margin-top: auto;
@@ -3549,4 +3576,308 @@ label.set-row {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   text-align: center;
+}
+
+/* lobby-style tile: the name sits on the art, then a footer with the player count and a round gold play disc */
+.games-panel .gc {
+  grid-template-areas: "art art" "players play";
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 7px 6px;
+  padding: 6px 6px 7px;
+}
+.games-panel .gc-name {
+  grid-area: art;
+  align-self: end;
+  font-size: 20px;
+}
+.games-panel .gc-players {
+  grid-area: players;
+  position: static;
+  align-self: center;
+  margin: 0 0 0 6px;
+  padding: 0;
+  background: none;
+  font: 700 13px/1 var(--font-oswald), sans-serif;
+  color: rgba(244, 236, 216, 0.75);
+}
+/* the "Play" label is kept for the markup but drawn as a ▶ disc */
+.games-panel .gc-play {
+  grid-area: play;
+  position: relative;
+  width: 34px;
+  height: 34px;
+  margin: 0 2px 0 0;
+  padding: 0;
+  border: 2.5px solid var(--ink, #2a170f);
+  border-radius: 50%;
+  font-size: 0;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), inset 0 -3px 0 rgba(0, 0, 0, 0.18), 0 3px 0 var(--ink, #2a170f);
+  transition: scale 0.15s ease;
+}
+.games-panel .gc-play::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -35% -50%;
+  border-style: solid;
+  border-width: 7px 0 7px 11px;
+  border-color: transparent transparent transparent var(--ink, #2a170f);
+}
+.games-panel .gc:hover .gc-play,
+.games-panel .gc:focus-visible .gc-play {
+  scale: 1.1;
+}
+
+/* pause sheet: compact — narrower panel, shorter buttons, smaller labels */
+.sheet-panel:has(.pause) {
+  max-width: 300px;
+}
+.sheet-panel:has(.pause) .sheet-head h2 {
+  font-size: 20px;
+}
+:root .pause {
+  gap: 8px;
+  padding-bottom: 2px;
+}
+:root .pause > * {
+  height: 40px;
+  min-height: 0;
+  padding-block: 0;
+  font-size: 14px;
+}
+
+/* sheet close (×): smaller, so it doesn't outweigh the title */
+:root .sheet-close {
+  width: 38px;
+  height: 38px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+}
+:root .sheet-close svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 3.2;
+}
+
+/* ─── host a table (every game): shop-style choices, a clear title, one strong button ─── */
+:root .host-setup {
+  --ink: #2b1704;
+  gap: 14px;
+}
+:root .host-title {
+  font: 800 22px/1.1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: #fff6e2;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+}
+:root .host-title b {
+  color: #ffd873;
+}
+:root .host-row {
+  display: grid;
+  gap: 8px;
+}
+:root .host-label {
+  margin: 0;
+  font: 700 14px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: rgba(244, 236, 216, 0.7);
+}
+:root .host-pills {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+/* each choice: the shop tab's chunky brown button; the picked one turns gold */
+:root .host-pills button {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  height: 44px;
+  padding: 0 8px 3px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: linear-gradient(#8a5a33, #6b4224);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.2), inset 0 -3px 0 rgba(0, 0, 0, 0.25), 0 3px 0 var(--ink);
+  font: 800 17px/1 var(--font-oswald), sans-serif;
+  color: #fff;
+  text-shadow:
+    -1.5px -1.5px 0 var(--ink), 1.5px -1.5px 0 var(--ink), -1.5px 1.5px 0 var(--ink), 1.5px 1.5px 0 var(--ink),
+    0 2px 0 var(--ink);
+  cursor: pointer;
+  transition: translate 0.1s, filter 0.15s;
+}
+:root .host-pills button:hover {
+  filter: brightness(1.08);
+}
+:root .host-pills button:active {
+  translate: 0 2px;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.2), 0 1px 0 var(--ink);
+}
+:root .host-pills button[aria-checked="true"] {
+  background: linear-gradient(#ffe27a, #f2b52a 55%, #c98712);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), inset 0 -3px 0 rgba(0, 0, 0, 0.18), 0 3px 0 var(--ink);
+  color: var(--ink);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+:root .host-pills button:focus-visible {
+  outline: 3px solid #ffd75e;
+  outline-offset: 2px;
+}
+/* create table: the fee as a dark chip on the gold button */
+:root .host-go {
+  margin-top: 4px;
+  gap: 12px;
+}
+:root .host-go .home-cost {
+  padding: 4px 10px 4px 5px;
+  border-radius: 999px;
+  background: rgba(43, 23, 4, 0.85);
+  font: 800 15px/1 var(--font-oswald), sans-serif;
+  color: #ffd873;
+  text-shadow: none;
+}
+
+/* the game's name under the BAAZI logo: a dark plaque with big gold outlined lettering */
+:root .home-game {
+  position: relative;
+  margin: -8px 0 2px;
+  padding: 5px 22px 7px;
+  border-radius: 999px;
+  background: linear-gradient(#2a1d13, #1a110a);
+  box-shadow: inset 0 0 0 1.5px rgba(232, 176, 74, 0.55), 0 3px 0 rgba(0, 0, 0, 0.5);
+  font: 800 22px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffd873;
+  text-shadow: 0 2px 0 #2b1704;
+}
+/* the panel's own heading is now just a small label */
+:root .host-title {
+  font: 700 15px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(244, 236, 216, 0.7);
+  text-shadow: none;
+}
+
+/* join code tiles: dark wells with a gold edge, the next one to fill glows, digits big gold outlined */
+:root .home-tiles > span {
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(#120c07, #241810);
+  box-shadow:
+    inset 0 0 0 1.5px rgba(232, 176, 74, 0.55),
+    inset 0 3px 6px rgba(0, 0, 0, 0.7),
+    0 2px 0 rgba(255, 216, 115, 0.08);
+  font: 800 26px/1 var(--font-oswald), sans-serif;
+  color: #ffd873;
+  text-shadow: 0 2px 0 #2b1704;
+  transition: box-shadow 0.15s;
+}
+:root .home-code:focus-within .home-tiles > span[data-next="true"] {
+  box-shadow:
+    inset 0 0 0 2px #ffd873,
+    inset 0 3px 6px rgba(0, 0, 0, 0.6),
+    0 0 12px rgba(255, 200, 80, 0.45);
+}
+:root .home-or {
+  color: #e8b04a;
+}
+
+/* pause: a little bigger again than the compact pass (between the old and the compact one) */
+.sheet-panel:has(.pause) {
+  max-width: 340px;
+}
+:root .pause {
+  gap: 10px;
+}
+:root .pause > * {
+  height: 48px;
+  font-size: 16px;
+}
+
+/* host panel: no "Host a table" heading (the game's name is above); each setting's label is a centred
+   gold divider like "or join a table"; the choices match the dark panel, the picked one the gold button */
+:root .host-title {
+  display: none;
+}
+:root .host-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 700 13px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #e8b04a;
+}
+:root .host-label::before,
+:root .host-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(232, 176, 74, 0.5));
+}
+:root .host-label::after {
+  background: linear-gradient(90deg, rgba(232, 176, 74, 0.5), transparent);
+}
+:root .host-pills button {
+  border: 0;
+  background: linear-gradient(#2a1d13, #1c130c);
+  box-shadow: inset 0 0 0 1.5px rgba(232, 176, 74, 0.45), 0 3px 0 rgba(0, 0, 0, 0.55);
+  color: #ffd873;
+  text-shadow: 0 2px 0 #000;
+}
+:root .host-pills button:active {
+  box-shadow: inset 0 0 0 1.5px rgba(232, 176, 74, 0.45), 0 1px 0 rgba(0, 0, 0, 0.55);
+}
+:root .host-pills button[aria-checked="true"] {
+  background: linear-gradient(#ffd873, #f2b134 55%, #d99a2b);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), inset 0 -3px 0 rgba(0, 0, 0, 0.18), 0 3px 0 #7a4a10;
+  color: #2b1704;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* setting label: plain, left, readable (no divider lines) */
+:root .host-label {
+  display: block;
+  padding-left: 2px;
+  font: 700 16px/1 var(--font-oswald), sans-serif;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: #f4ecd8;
+}
+:root .host-label::before,
+:root .host-label::after {
+  content: none;
+}
+
+/* choices: a coin before each amount, a warmer fill, bigger numbers, so the row reads full */
+:root .host-pills button {
+  grid-auto-flow: column;
+  gap: 7px;
+  height: 48px;
+  background: linear-gradient(#4a3220, #2e1f14);
+  box-shadow: inset 0 0 0 1.5px rgba(232, 176, 74, 0.55), inset 0 2px 0 rgba(255, 255, 255, 0.08), 0 3px 0 rgba(0, 0, 0, 0.55);
+  font-size: 19px;
+  color: #fff3d6;
+}
+:root .host-pills[aria-label="Boot"] button::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #c98712 0 3px, #ffd873 3.5px 5px, #e0a12a 5.5px);
+  box-shadow: 0 0 0 1.5px #2b1704, 0 1.5px 0 1.5px rgba(0, 0, 0, 0.4);
+}
+:root .host-pills[aria-label="Boot"] button[aria-checked="true"]::before {
+  box-shadow: 0 0 0 1.5px #2b1704;
 }

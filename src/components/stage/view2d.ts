@@ -35,6 +35,8 @@ export interface Shot {
   shift: [number, number];
   /** Stretches the table depth (z) about the look point so a tall phone felt fills the band above the hand. */
   depthK?: number;
+  /** Extra stretch for the near half only (the side toward the camera), so the table reaches further down. */
+  nearK?: number;
 }
 
 /** Distance at which a W x H box fills the frame. */
@@ -107,7 +109,7 @@ export function shotFor(look: LookId, aspect: number, short: boolean): Shot {
     const at: Vec = [0, tall ? 0.8 : 0.88, tall ? 0.1 : -0.05];
     const dir = norm([0, tall ? 2.3 : 0.85, 1]);
     const d = fit(tall ? 2.38 : 3.6, short ? 1.85 : 2.1, fov, aspect);
-    return { pos: along(at, dir, d), look: at, fov, shift: [0, tall ? 0.03 : short ? 0.12 : 0.08], depthK: tall ? 1.1 : undefined };
+    return { pos: along(at, dir, d), look: at, fov, shift: [0, tall ? 0.03 : short ? 0.12 : 0.08], depthK: tall ? 1.18 : undefined, nearK: undefined };
   }
   if (look === "menu") {
     if (tall) {
@@ -146,8 +148,11 @@ export function makeView(look: LookId, w: number, h: number): View {
   const u = cross(r, f);
   const t = Math.tan((shot.fov * Math.PI) / 360);
   const k = shot.depthK ?? 1;
+  const kn = shot.nearK ?? 1;
   const px = (p: Vec): [number, number] => {
-    const d = sub(k === 1 ? p : [p[0], p[1], shot.look[2] + (p[2] - shot.look[2]) * k], shot.pos);
+    const dz = p[2] - shot.look[2];
+    const kz = dz > 0 ? k * kn : k;
+    const d = sub(kz === 1 ? p : [p[0], p[1], shot.look[2] + dz * kz], shot.pos);
     const z = Math.max(dot(d, f), 0.01);
     const nx = dot(d, r) / (z * t * aspect);
     const ny = dot(d, u) / (z * t);

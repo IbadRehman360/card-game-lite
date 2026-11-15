@@ -48,9 +48,7 @@ export function HostSettings({
             <path d="M15 5 8 12l7 7" />
           </svg>
         </button>
-        <p className="host-title">
-          Host <b>{spec.name}</b>
-        </p>
+        <p className="host-title">Host a table</p>
       </div>
 
       {spec.settings.map((setting) => (

@@ -8,6 +8,7 @@ import { tablePreviewUrl, useTableTheme } from "@/lib/table-theme";
 import { CoinError, buyCardBack, buyTableTheme, useWallet } from "@/lib/wallet/client";
 import { CARD_BACKS, TABLE_THEMES } from "@/lib/wallet/economy";
 import { CostTag } from "./cost-tag";
+import { createPortal } from "react-dom";
 import "./card-style.css";
 
 const fmt = (n: number) => n.toLocaleString("en-IN");
@@ -25,7 +26,11 @@ type Kind = "back" | "table";
 
 /** The picture of a back (a real 5:7 card) or a table, sized by its box. */
 function ItemPic({ kind, art }: { kind: Kind; art: string }) {
-  if (kind === "back") return <span className="cs-pic cs-pic-back" style={{ backgroundImage: `url("${art}")` }} aria-hidden />;
+  if (kind === "back") return (
+      <span className="cs-pic cs-pic-back" aria-hidden>
+        <span className="cs-pic-face" style={{ backgroundImage: `url("${art}")` }} />
+      </span>
+    );
   // eslint-disable-next-line @next/next/no-img-element
   return <img className="cs-pic cs-pic-table" src={art} alt="" aria-hidden draggable={false} />;
 }
@@ -109,7 +114,9 @@ function BuyConfirm({
     e.stopPropagation();
     onCancel();
   };
-  return (
+  // drawn over the whole screen (portal): inside the shop frame, its pop animation would clip the dim to the frame
+  return createPortal(
+    <div className="shop shop-confirm-layer">
     <div className="cs-confirm" role="alertdialog" aria-modal="true" aria-labelledby="cs-confirm-title" onKeyDown={onKeyDown}>
       <div className="cs-confirm-backdrop" onClick={onCancel} aria-hidden />
       <div className="cs-confirm-card" data-kind={kind}>
@@ -140,6 +147,8 @@ function BuyConfirm({
         </div>
       </div>
     </div>
+    </div>,
+    document.body,
   );
 }
 

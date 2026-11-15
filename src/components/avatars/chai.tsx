@@ -12,15 +12,21 @@ export function ChaiGlass({ className, size }: { className?: string; size?: numb
         <path d="M26 22q-4-5 0-9t0-9" />
         <path d="M37 24q-4-5 0-9t0-9" />
       </g>
+      {/* a tall ribbed cutting-chai glass (no saucer: from a distance the round saucer read as a coin) */}
       <g stroke={INK} strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round">
-        <ellipse cx="32" cy="72" rx="26" ry="6" fill="#b9bcc6" />
-        <ellipse cx="32" cy="70" rx="18" ry="3.5" fill="#d9dce3" strokeWidth="1.4" />
-        <path d="M18 30h28l-4 38H22z" fill="#fff" fillOpacity="0.35" />
-        <path d="M19.5 38h25l-3 30H22.5z" fill="#c9772f" stroke="none" />
-        <ellipse cx="32" cy="38" rx="12.5" ry="2.2" fill="#e9b77a" strokeWidth="1.2" />
-        <path d="M24 44l1.4 20M32 44v20M40 44l-1.4 20" stroke="#fff" strokeOpacity="0.35" strokeWidth="1.6" />
-        <path d="M18 30h28l-4 38H22z" fill="none" />
-        <ellipse cx="32" cy="30" rx="14" ry="2.6" fill="none" />
+        <ellipse cx="32" cy="74" rx="15" ry="3" fill="#000" fillOpacity="0.25" stroke="none" />
+        {/* the glass */}
+        <path d="M17 26h30l-4.5 46h-21z" fill="#fff" fillOpacity="0.4" />
+        {/* milky chai filling most of it, the froth on top */}
+        <path d="M18.6 34h26.8l-3.7 37.5H22.3z" fill="#b8722f" stroke="none" />
+        <path d="M18.6 34h26.8l-0.4 4H19z" fill="#e8c28c" stroke="none" />
+        {/* the glass's ribs and a shine */}
+        <path d="M24 40l1.2 28M32 40v28M40 40l-1.2 28" stroke="#fff" strokeOpacity="0.4" strokeWidth="1.6" />
+        <path d="M21 30l2.6 38" stroke="#fff" strokeOpacity="0.85" strokeWidth="2" />
+        {/* the thick rim and base of a cutting glass */}
+        <path d="M17 26h30l-4.5 46h-21z" fill="none" />
+        <path d="M22.4 68.5h19.2" strokeWidth="2" />
+        <path d="M16.6 26h30.8" strokeWidth="3.2" />
       </g>
     </svg>
   );

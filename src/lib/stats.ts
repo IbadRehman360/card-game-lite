@@ -76,18 +76,35 @@ export function totalStats(stats: GameStats): { played: number; won: number } {
 /** Win rate as a whole percent (0 with no games). */
 export const winPercent = (played: number, won: number) => (played ? Math.round((won / played) * 100) : 0);
 
-/** Ranks by total wins: the first one at 0, each next one once `wins` is reached. */
-export const RANKS = [
-  { title: "Naya", wins: 0 },
-  { title: "Khiladi", wins: 5 },
-  { title: "Ustad", wins: 20 },
-  { title: "Badshah", wins: 50 },
-] as const;
+/** XP: 10 for every game played, 25 more for every win. */
+export const xpFor = (stats: GameStats): number => {
+  const t = totalStats(stats);
+  return t.played * 10 + t.won * 25;
+};
 
-/** The rank for a number of wins, and the next one (null at the top). */
-export function rankFor(wins: number): { title: string; next: { title: string; wins: number } | null } {
-  let i = 0;
-  while (i + 1 < RANKS.length && wins >= RANKS[i + 1].wins) i++;
-  const next = RANKS[i + 1] ?? null;
-  return { title: RANKS[i].title, next: next ? { title: next.title, wins: next.wins } : null };
+/** XP to climb from level n to n + 1: 100, 150, 200 ... */
+const stepFor = (n: number) => 100 + (n - 1) * 50;
+
+/** Level for a total of XP, how far into it, what it takes to reach the next, and that as 0..1. */
+export function levelFor(xp: number): { level: number; xpInto: number; xpNeeded: number; progress: number } {
+  let level = 1;
+  let left = Math.max(0, Math.floor(xp) || 0);
+  while (left >= stepFor(level)) {
+    left -= stepFor(level);
+    level++;
+  }
+  const xpNeeded = stepFor(level);
+  return { level, xpInto: left, xpNeeded, progress: left / xpNeeded };
+}
+
+/** Your level, from the games played on this device. */
+export function useLevel() {
+  return levelFor(xpFor(useStats()));
+}
+
+/** A steady made-up level (3 to 40) for a computer player, from its name: the same name is always the same level. */
+export function botLevel(name: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < name.length; i++) h = Math.imul(h ^ name.charCodeAt(i), 16777619);
+  return 3 + ((h >>> 0) % 38);
 }

@@ -11,6 +11,8 @@ export interface TablePaths {
   lip: string;
   felt: string;
   inlay: string;
+  /** The felt's printed diamonds: the big one, then the one inside it. */
+  emblem: string[];
   studs: [number, number][];
 }
 
@@ -50,8 +52,20 @@ export function ThemedTable({
   const pattern = themed ? feltPatternSvg("tt-pat", look, tile, Math.max(0.35, Math.min(1, squash))) : "";
   const veins = themed && look.railVeins ? veinPatternSvg("tt-veins", look.railVeins, Math.max(80, w / 6)) : "";
   const grainSize = Math.max(160, w / 4);
-  const multi = look.inlay.length > 1;
-  const dash = Math.max(4, w / 120);
+
+  const emblem = (
+    <g className="st-emblem" aria-hidden>
+      <path d={paths.emblem[0]} fill="rgba(0,0,0,0.1)" stroke="rgba(255,255,255,0.13)" strokeWidth={Math.max(2, w / 180)} strokeLinejoin="round" />
+      <path d={paths.emblem[1]} fill="rgba(0,0,0,0.12)" stroke="rgba(255,255,255,0.08)" strokeWidth={Math.max(1.4, w / 300)} strokeLinejoin="round" />
+    </g>
+  );
+  // the house picture holds its own table: only the printed diamonds go over it, in a game
+  if (hide)
+    return play ? (
+      <svg className="st-table st-table-emblem" width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden>
+        {emblem}
+      </svg>
+    ) : null;
 
   return (
     <svg className="st-table" data-hide={hide ? "" : undefined} data-theme={id} width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden>
@@ -108,21 +122,8 @@ export function ThemedTable({
       )}
       {pattern && <path d={paths.felt} fill="url(#tt-pat)" opacity={look.patternOpacity} />}
       {themed && <path d={paths.felt} fill="url(#tt-shade)" />}
-      {multi ? (
-        look.inlay.map((c, i) => (
-          <path
-            key={c}
-            d={paths.inlay}
-            fill="none"
-            stroke={c}
-            strokeWidth={Math.max(2, w / 260)}
-            strokeDasharray={`${dash} ${dash * (look.inlay.length - 1)}`}
-            strokeDashoffset={-i * dash}
-          />
-        ))
-      ) : (
-        <path d={paths.inlay} fill="none" stroke={look.inlay[0]} strokeWidth={Math.max(1.6, w / 300)} />
-      )}
+      {/* no inlay line round the felt: the printed diamonds in the middle instead */}
+      {play && emblem}
       {paths.studs.map(([x, y], i) => (
         <circle key={i} cx={x} cy={y} r={Math.max(1.4, w / 600)} fill={look.studs[i % look.studs.length]} />
       ))}

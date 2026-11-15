@@ -24,8 +24,8 @@
 :root .shop-tabs.htp-tabs button {
   flex: none;
   white-space: nowrap;
-  padding: 6px 18px 8px;
-  font-size: 17px;
+  padding: 5px 13px 7px;
+  font-size: 14px;
 }
 
 .htp {
@@ -57,7 +57,7 @@
 .htp-step {
   counter-increment: htp;
   position: relative;
-  padding: 15px 14px 15px 46px;
+  padding: 10px 14px 10px 40px;
   font-size: 15px;
   font-weight: 500;
   line-height: 1.4;
@@ -66,36 +66,21 @@
 .htp-step + .htp-step {
   border-top: 1px solid rgba(244, 236, 216, 0.07);
 }
-/* the marker: a gold diamond suit sign (text variant, not the emoji) */
+/* the marker: one small gold diamond, drawn in CSS so every row is the same size */
 .htp-step::before {
-  content: "\2666\FE0E";
+  content: "";
   position: absolute;
   left: 16px;
-  top: 15px;
-  width: 18px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  font: 15px/1 "Segoe UI Symbol", "Apple Symbols", sans-serif;
-  color: #f2c14e;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
-}
-/* cycle through the four suits so the list reads like a hand of cards */
-.htp-step:nth-child(4n + 1)::before {
-  content: "\2660\FE0E";
-  color: #f4ecd8;
-}
-.htp-step:nth-child(4n + 2)::before {
-  content: "\2665\FE0E";
-  color: #e2574c;
-}
-.htp-step:nth-child(4n + 3)::before {
-  content: "\2663\FE0E";
-  color: #f4ecd8;
-}
-.htp-step:nth-child(4n + 4)::before {
-  content: "\2666\FE0E";
-  color: #e2574c;
+  top: 16px;
+  width: 11px;
+  height: 11px;
+  rotate: 45deg;
+  border-radius: 2px;
+  /* a gold diamond with a small dark diamond set in its middle */
+  background:
+    linear-gradient(#2b1704, #2b1704) center / 5.5px 5.5px no-repeat,
+    linear-gradient(135deg, #ffd873, #d99a2b);
+  box-shadow: 0 0 0 1.5px #2b1704, 0 2px 0 rgba(0, 0, 0, 0.5);
 }
 .htp-title {
   margin-right: 6px;

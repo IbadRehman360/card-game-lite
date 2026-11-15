@@ -6,7 +6,8 @@ import { SeatedFigure } from "@/components/avatars/seated";
 import { CHARACTERS } from "@/lib/characters";
 import { NAME_MAX, cleanName, setPrefs, usePrefs } from "@/lib/prefs";
 import { sfx } from "@/lib/sfx";
-import { COUNTED_GAMES, rankFor, totalStats, useStats, winPercent } from "@/lib/stats";
+import { LevelBadge } from "@/components/ui/level-badge";
+import { COUNTED_GAMES, useLevel, useStats, winPercent } from "@/lib/stats";
 import { GAMES } from "@/lib/wallet/economy";
 import { Chevron } from "./icons";
 import "@/components/shop/shop.css";
@@ -14,7 +15,7 @@ import "./profile.css";
 
 /**
  * Your profile, a screen of its own: your character big and seated at the table, your name, a strip of
- * your rank and record, and two tabs: the cast to pick from, and your games one by one. It is also where
+ * your level and record, and two tabs: the cast to pick from, and your games one by one. It is also where
  * a first-time player picks who they play as on the way into a game: then a button at the foot sits them down.
  */
 export function ProfileScreen({
@@ -34,11 +35,11 @@ export function ProfileScreen({
   const prefs = usePrefs();
   const stats = useStats();
   const [tab, setTab] = useState<"character" | "stats">("character");
+  const [editing, setEditing] = useState(false);
   const n = CHARACTERS.length;
   const i = Math.min(n - 1, Math.max(0, index));
   const me = CHARACTERS[i];
-  const total = totalStats(stats);
-  const rank = rankFor(total.won);
+  const lvl = useLevel();
 
   const pick = (next: number) => {
     if (next < 0 || next >= n || next === i) return;
@@ -99,37 +100,52 @@ export function ProfileScreen({
           <div className="prof-stage" aria-live="polite">
             <SeatedFigure key={me.id} id={me.id} cards table className="prof-figure" title={me.name} />
           </div>
-          <p className="prof-name">{prefs.name || me.name}</p>
-          <label className="prof-field">
-            <span className="prof-h">Your name</span>
-            <input
-              className="prof-input"
-              value={prefs.name}
-              maxLength={NAME_MAX}
-              autoComplete="nickname"
-              spellCheck={false}
-              placeholder={me.name}
-              onChange={(e) => setPrefs({ name: cleanName(e.target.value) })}
-            />
-          </label>
-          <dl className="prof-strip">
-            <div data-rank="">
-              <dt>Rank</dt>
-              <dd>{rank.title}</dd>
-            </div>
-            <div>
-              <dt>Matches</dt>
-              <dd>{total.played}</dd>
-            </div>
-            <div>
-              <dt>Wins</dt>
-              <dd>{total.won}</dd>
-            </div>
-            <div>
-              <dt>Win %</dt>
-              <dd>{winPercent(total.played, total.won)}%</dd>
-            </div>
-          </dl>
+          {/* the name, with a pencil beside it: tap to rename in place */}
+          <div className="prof-namerow">
+            {editing ? (
+              <input
+                className="prof-input prof-input-inline"
+                aria-label="Your name"
+                value={prefs.name}
+                maxLength={NAME_MAX}
+                autoComplete="nickname"
+                spellCheck={false}
+                autoFocus
+                placeholder={me.name}
+                onChange={(e) => setPrefs({ name: cleanName(e.target.value) })}
+                onBlur={() => setEditing(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur();
+                }}
+              />
+            ) : (
+              <>
+                <p className="prof-name">{prefs.name || me.name}</p>
+                <button
+                  type="button"
+                  className="prof-edit"
+                  aria-label="Rename"
+                  onClick={() => {
+                    sfx.select();
+                    setEditing(true);
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden>
+                    <path d="M4 20h4L19 9l-4-4L4 16v4Z M13.5 6.5l4 4" />
+                  </svg>
+                </button>
+              </>
+            )}
+            <LevelBadge level={lvl.level} size="md" />
+          </div>
+          <div className="prof-xp" role="progressbar" aria-label="XP" aria-valuemin={0} aria-valuemax={lvl.xpNeeded} aria-valuenow={lvl.xpInto}>
+            <span className="prof-xp-bar">
+              <i style={{ width: `${Math.round(lvl.progress * 100)}%` }} />
+            </span>
+            <span className="prof-xp-text">
+              {lvl.xpInto} / {lvl.xpNeeded} XP
+            </span>
+          </div>
         </section>
 
         <div className="prof-side">
@@ -181,11 +197,6 @@ export function ProfileScreen({
                     </li>
                   );
                 })}
-                {rank.next && (
-                  <li className="prof-next">
-                    {rank.next.wins - total.won} more win{rank.next.wins - total.won === 1 ? "" : "s"} to {rank.next.title}
-                  </li>
-                )}
               </ul>
             )}
           </div>
@@ -215,6 +226,7 @@ export function ProfileScreen({
 export function ProfileButton({ onOpen }: { onOpen: () => void }) {
   const prefs = usePrefs();
   const me = CHARACTERS.find((c) => c.id === prefs.character) ?? CHARACTERS[0];
+  const lvl = useLevel();
   return (
     <button
       type="button"
@@ -227,6 +239,7 @@ export function ProfileButton({ onOpen }: { onOpen: () => void }) {
       }}
     >
       <Avatar id={me.id} />
+      <LevelBadge level={lvl.level} size="sm" className="profile-btn-lvl" />
     </button>
   );
 }

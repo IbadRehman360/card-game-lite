@@ -281,7 +281,7 @@ function SeatedAt({
         } as CSSProperties
       }
     >
-      <SeatedFigure id={sitter.id} />
+      <SeatedFigure id={sitter.id} sip />
     </div>
   );
 }
@@ -337,6 +337,16 @@ function Room({
         view,
         tableRect(H - 0.1575, D - 0.1575, r - 0.1125, y + 0.001),
       ),
+      // a big turned square on the felt and a smaller one inside it (the felt's printed "boxes")
+      emblem: [0.62, 0.42].map((k) => {
+        const a = Math.min(H, D) * k * TABLE_SCALE;
+        return pathOf(view, [
+          [0, y + 0.002, -a],
+          [a, y + 0.002, 0],
+          [0, y + 0.002, a],
+          [-a, y + 0.002, 0],
+        ]);
+      }),
       studs: spaced(
         tableRect(H + 0.035, D + 0.035, r + 0.045, y + 0.045, 16),
         36,

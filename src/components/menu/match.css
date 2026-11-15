@@ -1,13 +1,25 @@
 /* Play: the quick-match search screen (match-screen.tsx). It is the lobby (menu.css .lobby-*), with a
    searching header in place of the table code and a searching ring in each seat nobody has taken yet. */
 
-.match-head {
+/* no card behind the header: just the title and the bar on the background */
+.lobby section.match-head {
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  box-shadow: none;
   text-align: center;
 }
+.match-kicker {
+  margin: 0;
+  font: 700 13px/1.2 var(--font-oswald), sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f2c14e;
+}
 .match-title {
-  margin: 4px 0 10px;
-  font: 700 28px/1.1 var(--font-oswald), sans-serif;
-  color: #f3ead6;
+  margin: 6px 0 14px;
+  font: 700 30px/1.1 var(--font-oswald), sans-serif;
+  color: #f4ecd8;
 }
 .match[data-starting="true"] .match-title {
   color: #e8b04a;
@@ -26,8 +38,11 @@
   background: linear-gradient(90deg, #b8762a, #e8b04a);
   transition: width 0.5s linear;
 }
-.match-count {
+.match-time {
+  margin: 8px 0 0;
+  font: 600 12px/1 var(--font-oswald), sans-serif;
   font-variant-numeric: tabular-nums;
+  color: rgba(244, 236, 216, 0.5);
 }
 
 /* a seat being searched for: the ring pulses gently with three dots in it */
@@ -63,7 +78,16 @@
 
 /* the heading sits above the panel, the seat groups sit straight on it (no box in a box) */
 .match .match-players {
-  margin: 4px 4px -4px;
+  margin: 6px 4px -4px;
+  font: 700 15px/1.2 var(--font-oswald), sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f4ecd8;
+}
+.match .match-players b {
+  font-weight: 700;
+  color: #f2c14e;
+  font-variant-numeric: tabular-nums;
 }
 .match .lobby-team,
 .match .lobby-team[data-tone] {
@@ -127,6 +151,30 @@
   }
 }
 :root[data-motion="reduce"] .match-seat .lobby-ring,
+:root[data-motion="reduce"] .match-ell i,
 :root[data-motion="reduce"] .match-dots i {
   animation: none;
+}
+
+/* spacing: room above the title, the bar inset from the edges, the players label centred with air around it */
+.lobby section.match-head {
+  margin-top: 18px;
+  padding: 0 18px;
+}
+.match-title {
+  margin: 0 0 6px;
+}
+.match-progress {
+  max-width: 280px;
+  margin: 0 auto;
+}
+.match .lobby-label.match-players {
+  margin: 14px 0 8px;
+  text-align: center;
+}
+
+/* empty seats: no sub line now, so centre the dots and "Searching…" in the box */
+.match .lobby-seat[data-filled="false"] {
+  align-content: center;
+  justify-content: center;
 }

@@ -27,6 +27,14 @@
   width: 100%;
   height: 100%;
 }
+.profile-btn {
+  position: relative;
+}
+.profile-btn .profile-btn-lvl {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+}
 
 /* the room stays behind the profile, dimmed: the screen is about you */
 .room[data-scene="profile"] .stage-shade {
@@ -177,73 +185,105 @@ html[data-motion="reduce"] .prof-figure {
   text-transform: uppercase;
   text-shadow: 0 3px 0 rgba(0, 0, 0, 0.55);
 }
-.prof-field {
+.prof-namerow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: 100%;
+}
+.prof-xp {
   display: grid;
-  gap: 6px;
-  width: min(100%, 340px);
+  justify-items: center;
+  gap: 4px;
+  width: min(100%, 240px);
+  margin: 6px auto 0;
 }
-.prof-h {
-  margin: 0;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #e8b04a;
+.prof-xp-bar {
+  display: block;
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(255, 216, 115, 0.25);
 }
-/* the name field, in the app's dark brown: gold edge on focus, cream text */
+.prof-xp-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(#ffd873, #e8b04a);
+  transition: width 0.4s;
+}
+.prof-xp-text {
+  font: 600 12px/1 var(--font-oswald), sans-serif;
+  color: rgba(244, 236, 216, 0.7);
+}
+/* the name: editable in place, a soft field with a small pencil */
+.prof-field {
+  position: relative;
+  display: block;
+  width: min(100%, 300px);
+}
+.prof-pencil {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  translate: 0 -50%;
+  fill: none;
+  stroke: rgba(244, 236, 216, 0.55);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
 .prof-input {
   box-sizing: border-box;
   width: 100%;
-  height: 46px;
-  padding: 0 14px;
-  border: 2px solid rgba(184, 118, 42, 0.55);
+  height: 44px;
+  padding: 0 14px 0 38px;
+  border: 0;
   border-radius: 12px;
-  background: linear-gradient(#2f2116, #261a11);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45);
+  background: rgba(255, 255, 255, 0.07);
   color: #f4ecd8;
-  font: 600 17px/1 var(--font-oswald), sans-serif;
-  letter-spacing: 0.03em;
+  font: 600 16px/1 var(--font-oswald), sans-serif;
   outline: none;
   transition:
-    border-color 0.15s,
+    background 0.15s,
     box-shadow 0.15s;
 }
 .prof-input::placeholder {
   color: rgba(244, 236, 216, 0.4);
 }
 .prof-input:focus {
-  border-color: #e8b04a;
-  box-shadow:
-    inset 0 2px 6px rgba(0, 0, 0, 0.45),
-    0 0 0 3px rgba(232, 176, 74, 0.25);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 2px rgba(232, 176, 74, 0.7);
 }
 
-/* rank, matches, wins, win %: one compact strip */
+/* matches, wins, win rate: three small tiles */
 .prof-strip {
   display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr 1fr;
-  width: min(100%, 420px);
-  margin: 4px 0 0;
-  border: 2px solid #b8762a;
-  border-radius: 14px;
-  background: linear-gradient(#2f2116, #261a11);
-  overflow: hidden;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: min(100%, 360px);
+  margin: 6px 0 0;
 }
 .prof-strip > div {
-  display: grid;
-  justify-items: center;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
   gap: 2px;
   min-width: 0;
-  padding: 8px 4px 9px;
-}
-.prof-strip > div + div {
-  border-left: 1px solid rgba(184, 118, 42, 0.4);
+  padding: 12px 6px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
 }
 .prof-strip dt {
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
   color: rgba(244, 236, 216, 0.6);
 }
 .prof-strip dd {
@@ -251,10 +291,8 @@ html[data-motion="reduce"] .prof-figure {
   font-size: 20px;
   font-weight: 700;
   line-height: 1.1;
+  color: #f4ecd8;
   font-variant-numeric: tabular-nums;
-}
-.prof-strip [data-rank] dd {
-  color: #e8b04a;
 }
 
 .prof-side {
@@ -426,4 +464,110 @@ html[data-motion="reduce"] .prof-figure {
 }
 .prof-go {
   max-width: 360px;
+}
+
+/* character picks in the shop's tile look: cream panel, ink outline, the face on its colour disc, name in dark ink */
+.prof-card {
+  gap: 4px;
+  padding: 8px 6px 8px;
+  border: 3px solid #2b1704;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #3a291b, #2a1d13);
+  box-shadow: inset 0 0 0 1px rgba(242, 193, 78, 0.35), inset 0 -4px 0 rgba(0, 0, 0, 0.25), 0 4px 0 rgba(0, 0, 0, 0.45);
+  overflow: visible;
+  position: relative;
+}
+.prof-card-pic {
+  position: static;
+  width: 78%;
+  margin: 0 auto;
+  border: 3px solid #2b1704;
+  border-radius: 50%;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+.prof-card-pic .avatar {
+  width: 92%;
+  height: 92%;
+}
+.prof-card-name {
+  font: 800 13px/1.2 var(--font-oswald), sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f4ecd8;
+}
+.prof-card[aria-checked="true"] {
+  background: linear-gradient(180deg, #4a3520, #33241a);
+  box-shadow:
+    inset 0 -4px 0 rgba(120, 80, 30, 0.25),
+    0 4px 0 rgba(0, 0, 0, 0.45),
+    0 0 0 3px #ffd75e;
+}
+.prof-card[aria-checked="true"] .prof-card-name {
+  color: #ffd873;
+}
+.prof-card-check {
+  top: -7px;
+  right: -7px;
+  z-index: 1;
+}
+
+/* darker screen: a black vignette over the room, so the character and the cards stand out */
+.prof::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 120% 80% at 50% 30%, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.82) 75%),
+    rgba(8, 5, 3, 0.55);
+}
+/* the hero picture runs the full width of the screen */
+.prof-stage {
+  width: min(100%, 220px);
+  margin-bottom: 6px;
+}
+/* rename: a small round pencil beside the name; the inline field replaces the name while editing */
+.prof-edit {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 2px solid #2b1704;
+  border-radius: 50%;
+  background: linear-gradient(#ffd873, #e8b04a);
+  box-shadow: 0 2px 0 #2b1704;
+  cursor: pointer;
+}
+.prof-edit svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: #2b1704;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.prof-edit:active {
+  translate: 0 2px;
+  box-shadow: none;
+}
+.prof-input.prof-input-inline {
+  width: min(70vw, 240px);
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  text-align: center;
+  font: 700 22px/1 var(--font-oswald), sans-serif;
+  text-transform: uppercase;
+}
+
+/* a little more room at the sides of the character grid, like the game list */
+.prof-grid {
+  padding: 2px 6px 6px;
+}
+.prof-namerow {
+  margin-top: 4px;
 }

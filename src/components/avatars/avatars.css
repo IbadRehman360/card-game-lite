@@ -128,3 +128,57 @@ html[data-motion="reduce"] .seated .sit-eyes {
     animation: none;
   }
 }
+
+/* ── the sip (seated.tsx `sip`): every ~11s the right arm swings up from the shoulder, chai to the lips ── */
+.seated .sit-sip {
+  transform-box: view-box;
+  transform-origin: 108px 90px;
+  animation: sit-sip 11s ease-in-out infinite;
+  animation-delay: calc(var(--sit-delay, 0s) * 1.7);
+}
+@keyframes sit-sip {
+  0%, 62%, 100% {
+    rotate: 0deg;
+  }
+  72%, 84% {
+    rotate: 104deg;
+  }
+  78% {
+    rotate: 108deg;
+  }
+}
+html[data-motion="reduce"] .seated .sit-sip {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .seated .sit-sip {
+    animation: none;
+  }
+}
+
+/* keep the glass upright while the arm swings (counter-turn), tipped just a little toward the lips */
+.seated .sit-sip .sit-glass {
+  transform-box: view-box;
+  transform-origin: 90px 112px;
+  animation: sit-sip-glass 11s ease-in-out infinite;
+  animation-delay: inherit;
+}
+@keyframes sit-sip-glass {
+  0%, 62%, 100% {
+    rotate: 0deg;
+  }
+  72%, 84% {
+    rotate: -118deg;
+  }
+  78% {
+    rotate: -132deg;
+  }
+}
+html[data-motion="reduce"] .seated .sit-sip .sit-glass {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .seated .sit-sip .sit-glass {
+    animation: none;
+  }
+}

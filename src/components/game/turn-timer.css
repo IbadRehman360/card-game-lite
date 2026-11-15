@@ -1,40 +1,33 @@
 /* ─── the turn timer: shared by every game ─── */
 .turn-timer {
-  --tt: #ffd873;
+  --tt: #e3b95a;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 3px 14px 3px 3px;
+  justify-content: center;
   font-family: var(--font-oswald), sans-serif;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   line-height: 1;
-  color: #140d02;
-  background: var(--tt);
-  border: 2px solid #140d02;
-  border-radius: 999px;
-  box-shadow: 0 3px 0 #000, 0 0 18px color-mix(in srgb, var(--tt) 55%, transparent);
   white-space: nowrap;
-  transition: background 0.3s, box-shadow 0.3s;
+  border-radius: 50%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+  transition: box-shadow 0.3s;
 }
 .turn-timer[data-tone="orange"] {
-  --tt: #f2a03c;
+  --tt: #d99a45;
 }
 .turn-timer[data-tone="red"] {
-  --tt: #e0573c;
-  color: #fff4e6;
+  --tt: #c8553d;
   animation: tt-pulse 0.9s ease-in-out infinite;
 }
 .tt-dial {
   position: relative;
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   flex: none;
   border-radius: 50%;
-  background: #140d02;
+  background: linear-gradient(180deg, #2f2116, #261a11);
 }
 .tt-dial svg {
   position: absolute;
@@ -48,7 +41,7 @@
   stroke-width: 4;
 }
 .tt-track {
-  stroke: #3a2a1a;
+  stroke: rgba(244, 236, 216, 0.12);
 }
 .tt-ring {
   stroke: var(--tt);
@@ -64,14 +57,22 @@
 }
 .tt-dial b {
   position: relative;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: 0;
-  color: var(--tt);
+  color: #f4ecd8;
   font-variant-numeric: tabular-nums;
 }
+/* the words stay for screen readers only */
 .tt-label {
-  font-size: 15px;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 @keyframes tt-drain {
   to {
@@ -80,8 +81,8 @@
 }
 @keyframes tt-pulse {
   50% {
-    transform: scale(1.06);
-    box-shadow: 0 3px 0 #000, 0 0 26px #e0573c;
+    transform: scale(1.05);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5), 0 0 14px rgba(200, 85, 61, 0.55);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -100,7 +101,4 @@ html[data-motion="reduce"] .turn-timer[data-tone="red"] {
   border: 0;
   box-shadow: none;
   overflow: visible;
-}
-.turn-plate .turn-timer .tt-label {
-  font-size: 18px;
 }
