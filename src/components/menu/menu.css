@@ -4062,3 +4062,103 @@ label.set-row {
   font-size: 15px;
   white-space: nowrap;
 }
+
+/* ─── desktop home: logo and tagline on the left, the six games as a 3 × 2 grid on the right.
+       Tiles are sized from the window's height and width so both rows always fit without scrolling
+       and the wide screen is used instead of leaving a narrow column in the middle. ─── */
+.home-brand {
+  display: contents;
+}
+.home-tagline {
+  display: none;
+}
+@media (min-width: 1024px) and (min-aspect-ratio: 5/4) and (min-height: 561px) {
+  :root:root .menu:has(.home-games) {
+    --logo-w: clamp(260px, 22vw, 440px);
+    --col-gap: clamp(36px, 4vw, 88px);
+    --tile-gap: clamp(14px, 1.4vw, 22px);
+    --tile: min(
+      calc((100dvh - 132px - var(--tile-gap)) / 2),
+      calc((100vw - 120px - var(--logo-w) - var(--col-gap) - 2 * var(--tile-gap)) / 3),
+      460px
+    );
+    padding: 48px 60px;
+  }
+  :root:root .home-body.home-games {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: var(--col-gap);
+    width: 100%;
+    height: 100%;
+    max-height: none;
+  }
+  :root:root .home-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+    flex: none;
+    width: var(--logo-w);
+  }
+  :root:root .home-games .menu-logo {
+    width: 100%;
+    margin: 0;
+  }
+  :root:root .home-tagline {
+    display: block;
+    margin: 0;
+    padding-left: 6px;
+    max-width: 30ch;
+    font: 400 clamp(16px, 1.25vw, 21px) / 1.4 var(--font-oswald), sans-serif;
+    letter-spacing: 0.02em;
+    color: rgba(244, 236, 216, 0.82);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  }
+  :root:root .home-games .games-panel {
+    flex: none;
+    width: auto;
+    max-width: none;
+    padding: 0;
+    overflow: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  :root:root .games-panel .games {
+    grid-template-columns: repeat(3, var(--tile));
+    grid-auto-rows: var(--tile);
+    gap: var(--tile-gap);
+    padding: 0;
+  }
+  :root:root .games-panel .gc {
+    grid-template-rows: minmax(0, 1fr);
+    padding: 8px;
+    border-radius: 16px;
+    transition: scale 0.12s ease, translate 0.18s ease, box-shadow 0.18s ease;
+  }
+  :root:root .games-panel .gc-art {
+    height: 100%;
+    aspect-ratio: auto;
+    border-radius: 11px;
+  }
+  :root:root .games-panel .gc:hover {
+    translate: 0 -4px;
+    box-shadow: inset 0 0 0 1px rgba(242, 193, 78, 0.7), 0 10px 24px rgba(0, 0, 0, 0.55), 0 0 0 3px rgba(242, 177, 58, 0.35);
+  }
+  :root:root .games-panel .gc-name {
+    margin: 0 3px 3px;
+    padding: 40px 60px 16px 14px;
+    font-size: clamp(20px, 1.5vw, 28px);
+    border-radius: 0 0 10px 10px;
+  }
+  :root:root .games-panel .gc-play {
+    right: 16px;
+    bottom: 16px;
+    width: 38px;
+    height: 38px;
+    border-width: 2px;
+  }
+  :root:root .games-panel .gc-play::before {
+    border-width: 7px 0 7px 11px;
+  }
+}

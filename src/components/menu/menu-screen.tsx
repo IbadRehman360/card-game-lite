@@ -79,7 +79,10 @@ export function MenuScreen({
 
       {game === null ? (
         <div className="home-body home-games">
-          <Logo className="menu-logo" />
+          <div className="home-brand">
+            <Logo className="menu-logo" />
+            <p className="home-tagline">Six desi card games. Play the computer, or host a table and send friends the code.</p>
+          </div>
           <section className="games-panel">
           <div className="games" role="list">
             {GAME_CARDS.map((g, i) => (
